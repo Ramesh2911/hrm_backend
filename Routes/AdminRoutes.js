@@ -34,18 +34,16 @@ const ADMIN_ID = '1';
 
 const generateEmpId = async () => {
    try {
-      // Query to get the latest employee ID
       const sql = 'SELECT emp_id FROM employee_data ORDER BY id DESC LIMIT 1';
       const [rows] = await con.execute(sql);
 
-      // Generate the new emp_id based on the latest emp_id
       let newEmpId;
       if (rows.length > 0) {
          const lastEmpId = rows[0].emp_id;
          const lastNumber = parseInt(lastEmpId.split('-')[1]);
          newEmpId = `RAD-${lastNumber + 1}`;
       } else {
-         newEmpId = 'RAD-1001'; // Start from RAD-1001 if no records are found
+         newEmpId = 'RAD-1001';
       }
 
       return newEmpId;
@@ -261,6 +259,23 @@ router.put('/update-department', async (req, res) => {
    }
 });
 
+//Delete Department
+router.delete('/delete/department/:id', async (req, res) => {
+   try {
+      const { id } = req.params;
+      const result = await con.query('DELETE FROM departments WHERE id = ?', [id]);
+
+      if (result.affectedRows === 0) {
+         return res.status(404).json({ message: 'department not found.' });
+      }
+
+      res.status(200).json({ message: 'Department deleted successfully.' });
+   } catch (error) {
+      console.error('Error deleting department:', error);
+      res.status(500).json({ error: 'Failed to delete department.' });
+   }
+});
+
 //Add Designation
 router.post('/add-designation', async (req, res) => {
    const { designation_name, department } = req.body;
@@ -323,6 +338,23 @@ router.put('/update-designation', async (req, res) => {
    } catch (err) {
       console.error('Error updating designation:', err);
       res.status(500).json({ error: 'Database update failed' });
+   }
+});
+
+//Delete designation
+router.delete('/delete/designation/:id', async (req, res) => {
+   try {
+      const { id } = req.params;
+      const result = await con.query('DELETE FROM designation WHERE id = ?', [id]);
+
+      if (result.affectedRows === 0) {
+         return res.status(404).json({ message: 'Designation not found.' });
+      }
+
+      res.status(200).json({ message: 'Designation deleted successfully.' });
+   } catch (error) {
+      console.error('Error deleting designation:', error);
+      res.status(500).json({ error: 'Failed to delete designation.' });
    }
 });
 
@@ -600,6 +632,65 @@ router.put('/update-employee/:emp_id', upload.fields([
    }
 });
 
+//Delete Emp
+router.delete('/delete/employee/:emp_id', async (req, res) => {
+   const emp_id = req.params.emp_id;
+   console.log(emp_id, 'oo');
+
+   // Get a connection from the pool
+   const connection = await con.getConnection();
+
+   try {
+      // Start a transaction
+      await connection.beginTransaction();
+
+      // Find the email associated with the employee
+      const findEmailSql = 'SELECT email FROM employee_data WHERE emp_id = ?';
+      const [emailResult] = await connection.execute(findEmailSql, [emp_id]);
+
+      if (emailResult.length === 0) {
+         await connection.rollback();
+         connection.release();
+         return res.status(404).json({ error: 'Employee not found' });
+      }
+
+      const email = emailResult[0].email;
+
+      // Delete the user from the users table
+      const deleteUserSql = 'DELETE FROM users WHERE username = ?';
+      const [userResult] = await connection.execute(deleteUserSql, [email]);
+
+      if (userResult.affectedRows === 0) {
+         await connection.rollback();
+         connection.release();
+         return res.status(404).json({ error: 'User details not found for this employee' });
+      }
+
+      // Delete the employee from the employee_data table
+      const deleteEmployeeSql = 'DELETE FROM employee_data WHERE emp_id = ?';
+      const [employeeResult] = await connection.execute(deleteEmployeeSql, [emp_id]);
+
+      if (employeeResult.affectedRows === 0) {
+         await connection.rollback();
+         connection.release();
+         return res.status(404).json({ error: 'Failed to delete employee details' });
+      }
+
+      // Commit the transaction
+      await connection.commit();
+      connection.release();
+
+      res.status(200).json({ message: 'Employee and user details deleted successfully' });
+   } catch (error) {
+      // Rollback in case of any error
+      await connection.rollback();
+      connection.release();
+      console.error('Error deleting employee:', error);
+      res.status(500).json({ error: 'Failed to delete employee' });
+   }
+});
+
+
 //Add Project
 router.post('/add-project', async (req, res) => {
    const { project_title, project_description, project_start_date, project_end_date, project_assign_to } = req.body;
@@ -687,6 +778,23 @@ router.put('/update-project', async (req, res) => {
    } catch (error) {
       console.error('Error updating project:', error);
       res.status(500).json({ error: 'Database update failed' });
+   }
+});
+
+//Delete Project
+router.delete('/delete/project/:id', async (req, res) => {
+   try {
+      const { id } = req.params;
+      const result = await con.query('DELETE FROM projects WHERE id = ?', [id]);
+
+      if (result.affectedRows === 0) {
+         return res.status(404).json({ message: 'project not found.' });
+      }
+
+      res.status(200).json({ message: 'Project deleted successfully.' });
+   } catch (error) {
+      console.error('Error deleting project:', error);
+      res.status(500).json({ error: 'Failed to delete project.' });
    }
 });
 
@@ -885,25 +993,24 @@ router.post('/add-leaves', async (req, res) => {
 });
 
 //Taken leaves count
-router.get('/leaves-count/:emp_id', async (req, res) => {
+router.get('/taken-leaves-count/:emp_id', async (req, res) => {
    const emp_id = req.params.emp_id;
 
    const query = `
-       SELECT holiday_taken
+       SELECT COALESCE(SUM(CAST(holiday_taken AS DECIMAL(10,2))), 0) AS total_leaves_taken
        FROM leaves_application
        WHERE emp_id = ?
-       ORDER BY created_at DESC
-       LIMIT 1
    `;
 
    try {
       const [result] = await con.query(query, [emp_id]);
+      const totalLeavesTaken = result[0]?.total_leaves_taken || 0;
 
       if (result.length > 0) {
          res.status(200).json({
             success: true,
             message: 'Leaves data retrieved successfully.',
-            data: result[0]
+            data: totalLeavesTaken
          });
       } else {
          res.status(200).json({
@@ -1258,6 +1365,23 @@ router.get('/fetch-documents', async (req, res) => {
    }
 });
 
+//Delete Documents
+router.delete('/delete/document/:id', async (req, res) => {
+   try {
+      const { id } = req.params;
+      const result = await con.query('DELETE FROM documents WHERE id = ?', [id]);
+
+      if (result.affectedRows === 0) {
+         return res.status(404).json({ message: 'document not found.' });
+      }
+
+      res.status(200).json({ message: 'Document deleted successfully.' });
+   } catch (error) {
+      console.error('Error deleting document:', error);
+      res.status(500).json({ error: 'Failed to delete document.' });
+   }
+});
+
 //add paySlips
 router.post('/add/pay_slips', upload.single('doc_file'), async (req, res) => {
    try {
@@ -1279,7 +1403,7 @@ router.post('/add/pay_slips', upload.single('doc_file'), async (req, res) => {
       await con.query(notificationSql, [sender, send_to, message, currentDate]);
 
       return res.status(200).json({
-         message: 'Pay-slips uploaded and notification sent successfully',
+         message: 'Pay-slips uploaded successfully',
          paySlipsId: paySlipResult.insertId,
          filePath: `http://127.0.0.1:3000/uploads/${docFile}`
       });
@@ -1288,7 +1412,6 @@ router.post('/add/pay_slips', upload.single('doc_file'), async (req, res) => {
       return res.status(500).json({ error: 'Error uploading document', details: err.message });
    }
 });
-
 
 //list payslips
 router.get('/fetch-pay-slips', async (req, res) => {
@@ -1360,6 +1483,23 @@ router.put('/update/pay_slips/:id', upload.single('doc_file'), async (req, res) 
    } catch (err) {
       console.error('Error updating document:', err);
       return res.status(500).json({ error: 'Error updating document', details: err.message });
+   }
+});
+
+//delete paySlips
+router.delete('/delete/pay_slips/:id', async (req, res) => {
+   try {
+      const { id } = req.params;
+      const result = await con.query('DELETE FROM pay_slips WHERE id = ?', [id]);
+
+      if (result.affectedRows === 0) {
+         return res.status(404).json({ message: 'pay_slips record not found' });
+      }
+
+      return res.status(200).json({ message: 'pay_slips deleted successfully' });
+   } catch (err) {
+      console.error('Error deleting pay_slips record:', err);
+      return res.status(500).json({ error: 'Error deleting pay_slips record', details: err.message });
    }
 });
 
@@ -1461,17 +1601,46 @@ router.put('/update/p60/:id', upload.single('doc_file'), async (req, res) => {
    }
 });
 
-//get notification
-router.get('/get-notifications', async (req, res) => {
+//delete p60
+router.delete('/delete/p60/:id', async (req, res) => {
    try {
-      const query = 'SELECT message, date FROM notification';
-      const [notifications] = await con.query(query);
+      const { id } = req.params;
+      const result = await con.query('DELETE FROM p60 WHERE id = ?', [id]);
 
+      if (result.affectedRows === 0) {
+         return res.status(404).json({ message: 'P60 record not found' });
+      }
+
+      return res.status(200).json({ message: 'P60 deleted successfully' });
+   } catch (err) {
+      console.error('Error deleting P60 record:', err);
+      return res.status(500).json({ error: 'Error deleting P60 record', details: err.message });
+   }
+});
+
+//get notification
+router.get('/get-notification', async (req, res) => {
+   const { role, emp_id } = req.query;
+
+   try {
+      let query = '';
+      let params = [];
+
+      if (role === 'ADMIN') {
+         query = 'SELECT message, date FROM notification WHERE receiver = 1';
+      } else if (role === 'EMPLOYEE') {
+         query = 'SELECT message, date FROM notification WHERE receiver = ?';
+         params = [emp_id];
+      } else {
+         return res.status(400).json({ error: 'Invalid role provided.' });
+      }
+
+      const [notifications] = await con.query(query, params);
       const notificationCount = notifications.length;
 
       res.status(200).json({
          count: notificationCount,
-         notifications: notifications
+         notifications: notifications,
       });
    } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -1479,9 +1648,10 @@ router.get('/get-notifications', async (req, res) => {
    }
 });
 
+
 router.get('/logout', (req, res) => {
    res.clearCookie('token');
    return res.json({ Status: true });
 });
 
-export { router as adminRouter };
+export { router as AdminRoutes };

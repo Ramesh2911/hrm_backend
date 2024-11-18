@@ -1,6 +1,6 @@
 import express from "express";
 import cors from 'cors';
-import { adminRouter } from "./Routes/AdminRoute.js";
+import { AdminRoutes } from "./Routes/AdminRoutes.js";
 import cookieParser from "cookie-parser";
 import path from "path";
 import { fileURLToPath } from 'url';
@@ -19,7 +19,7 @@ app.use(cors({
 app.options('*', cors());
 app.use(express.json());
 app.use(cookieParser());
-app.use('/auth', adminRouter);
+app.use('/api', AdminRoutes);
 app.use(express.static('Public'));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
