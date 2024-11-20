@@ -64,74 +64,6 @@ const transporter = nodemailer.createTransport({
 });
 
 //Authenticate
-// router.post('/authenticate', async (req, res) => {
-//    const { user_name, user_password } = req.body;
-
-//    if (!user_name || !user_password) {
-//       return res.status(400).json({ loginStatus: false, Error: "Username and password are required" });
-//    }
-//    const sql = 'SELECT * FROM users WHERE username = ?';
-
-//    try {
-//       // Fetch user data
-//       const [result] = await con.query(sql, [user_name]);
-
-//       if (result.length === 0) {
-//          return res.status(404).json({ loginStatus: false, Error: "User not found" });
-//       }
-
-//       const user = result[0];
-
-//       // Compare passwords
-//       const match = await bcrypt.compare(user_password, user.password);
-//       if (!match) {
-//          return res.status(401).json({ loginStatus: false, Error: "Incorrect username or password" });
-//       }
-
-//       // Generate token
-//       const expiresIn = 1 * 60 * 60;
-//       const token = jwt.sign(
-//          { emp_id: user.emp_id, role: user.role_name },
-//          JWT_SECRET_KEY,
-//          { expiresIn }
-//       );
-//       const token_expired_on = new Date(Date.now() + expiresIn * 1000).toISOString();
-
-//       // Fetch additional employee data
-//       const empSql = "SELECT emp_id, first_name, last_name FROM employee_data WHERE email = ?";
-//       const [empResult] = await con.query(empSql, [user.username]);
-
-//       const responseData = {
-//          loginStatus: true,
-//          userData: {
-//             id: user.id,
-//             username: user.username,
-//             role_id: user.role_id,
-//             role_name: user.role_name,
-//             token: token,
-//             token_expired_on: token_expired_on,
-//             is_default_pwd: user.is_default_pwd,
-//             message: `${user.role_name} login successful`
-//          }
-//       };
-
-//       // Add employee data if found
-//       if (empResult.length > 0) {
-//          const employee = empResult[0];
-//          responseData.userData.emp_id = employee.emp_id;
-//          responseData.userData.first_name = employee.first_name;
-//          responseData.userData.last_name = employee.last_name;
-//       } else {
-//          responseData.userData.message += " (No employee data found)";
-//       }
-
-//       return res.json(responseData);
-//    } catch (error) {
-//       console.error("Error during login process:", error);
-//       return res.status(500).json({ loginStatus: false, Error: "Internal server error" });
-//    }
-// });
-
 router.post('/authenticate', async (req, res) => {
    const { user_name, user_password } = req.body;
 
@@ -142,7 +74,6 @@ router.post('/authenticate', async (req, res) => {
    const sql = 'SELECT * FROM users WHERE username = ?';
 
    try {
-      // Fetch user data
       const [result] = await con.query(sql, [user_name]);
 
       if (result.length === 0) {
@@ -150,27 +81,19 @@ router.post('/authenticate', async (req, res) => {
       }
 
       const user = result[0];
-
-      // Compare passwords
       const match = await bcrypt.compare(user_password, user.password);
       if (!match) {
          return res.status(401).json({ loginStatus: false, Error: "Incorrect username or password" });
       }
-
-      // Generate token
-      const expiresIn = 1 * 60 * 60; // Token valid for 1 hour
+      const expiresIn = 1 * 60 * 60;
       const token = jwt.sign(
          { emp_id: user.emp_id, role: user.role_name },
          JWT_SECRET_KEY,
          { expiresIn }
       );
       const token_expired_on = new Date(Date.now() + expiresIn * 1000).toISOString();
-
-      // Store token in the users table
       const updateTokenSql = 'UPDATE users SET token = ?, updated_at = ? WHERE id = ?';
       await con.execute(updateTokenSql, [token, new Date(), user.id]);
-
-      // Fetch additional employee data
       const empSql = "SELECT emp_id, first_name, last_name FROM employee_data WHERE email = ?";
       const [empResult] = await con.query(empSql, [user.username]);
 
@@ -188,7 +111,6 @@ router.post('/authenticate', async (req, res) => {
          }
       };
 
-      // Add employee data if found
       if (empResult.length > 0) {
          const employee = empResult[0];
          responseData.userData.emp_id = employee.emp_id;
@@ -204,7 +126,6 @@ router.post('/authenticate', async (req, res) => {
       return res.status(500).json({ loginStatus: false, Error: "Internal server error" });
    }
 });
-
 
 //change password
 router.post('/change-password', async (req, res) => {
@@ -512,6 +433,7 @@ router.post('/add-employee', upload.fields([
          password: hashedPassword,
          role_id: 2,
          role_name: 'EMPLOYEE',
+         status: 1,
          created_at: new Date(),
          updated_at: new Date()
       };
@@ -541,7 +463,7 @@ router.post('/add-employee', upload.fields([
          from: 'janaramesh15@gmail.com',
          to: initialValues.email,
          subject: 'Welcome to Radiance IT',
-         text: `Dear ${initialValues.first_name},\n\nYour employee account with Radiance IT has been created successfully.\n\nUsername: ${initialValues.email}\nPassword: ${defaultPassword}\n\nPlease change your password after logging in.\n\nBest regards,\nRadiance IT`
+         text: `Dear ${initialValues.first_name},\n\nWe are pleased to inform you that your employee account with Radiance IT has been successfully created.\n\nLogin URL: https://hrm-frontend-bice.vercel.app/\nUsername: ${initialValues.email}\nPassword: ${defaultPassword}\n\nFor security reasons, please change your password immediately after logging in.\n\nIf you have any questions or need assistance, feel free to reach out to our support team.\n\nBest regards,\nRadiance IT Team`
       };
 
       transporter.sendMail(mailOptions, (mailErr) => {
@@ -693,9 +615,23 @@ router.put('/update-employee/:emp_id', upload.fields([
       const updateSql = `UPDATE employee_data SET ${updateFields} WHERE emp_id = ?`;
       await con.execute(updateSql, [...updateValues, emp_id]);
 
-      if (req.body.email) {
-         const updateUserSql = `UPDATE users SET username = ? WHERE username = (SELECT email FROM employee_data WHERE emp_id = ?)`;
-         await con.execute(updateUserSql, [req.body.email, emp_id]);
+      if (req.body.status || req.body.email) {
+         const selectEmailSql = `SELECT email FROM employee_data WHERE emp_id = ?`;
+         const [rows] = await con.execute(selectEmailSql, [emp_id]);
+
+         if (rows.length > 0) {
+            const employeeEmail = rows[0].email;
+
+            if (req.body.status) {
+               const updateUserStatusSql = `UPDATE users SET status = ? WHERE username = ?`;
+               await con.execute(updateUserStatusSql, [req.body.status, employeeEmail]);
+            }
+
+            if (req.body.email) {
+               const updateUserEmailSql = `UPDATE users SET username = ? WHERE username = ?`;
+               await con.execute(updateUserEmailSql, [req.body.email, employeeEmail]);
+            }
+         }
       }
 
       res.status(200).json({ message: 'Employee updated successfully.' });
@@ -707,60 +643,39 @@ router.put('/update-employee/:emp_id', upload.fields([
 });
 
 //Delete Emp
-router.delete('/delete/employee/:emp_id', async (req, res) => {
-   const emp_id = req.params.emp_id;
-   console.log(emp_id, 'oo');
+router.delete('/delete/employee/:email', async (req, res) => {
+   const { email } = req.params;
 
-   // Get a connection from the pool
    const connection = await con.getConnection();
-
    try {
-      // Start a transaction
       await connection.beginTransaction();
 
-      // Find the email associated with the employee
-      const findEmailSql = 'SELECT email FROM employee_data WHERE emp_id = ?';
-      const [emailResult] = await connection.execute(findEmailSql, [emp_id]);
+      const [empResult] = await connection.execute(
+         'DELETE FROM employee_data WHERE email = ?',
+         [email]
+      );
 
-      if (emailResult.length === 0) {
+      if (empResult.affectedRows === 0) {
          await connection.rollback();
-         connection.release();
-         return res.status(404).json({ error: 'Employee not found' });
+         return res.status(404).json({ message: 'Employee not found.' });
       }
-
-      const email = emailResult[0].email;
-
-      // Delete the user from the users table
-      const deleteUserSql = 'DELETE FROM users WHERE username = ?';
-      const [userResult] = await connection.execute(deleteUserSql, [email]);
-
-      if (userResult.affectedRows === 0) {
-         await connection.rollback();
-         connection.release();
-         return res.status(404).json({ error: 'User details not found for this employee' });
-      }
-
-      // Delete the employee from the employee_data table
-      const deleteEmployeeSql = 'DELETE FROM employee_data WHERE emp_id = ?';
-      const [employeeResult] = await connection.execute(deleteEmployeeSql, [emp_id]);
-
-      if (employeeResult.affectedRows === 0) {
-         await connection.rollback();
-         connection.release();
-         return res.status(404).json({ error: 'Failed to delete employee details' });
-      }
-
-      // Commit the transaction
+      const [userResult] = await connection.execute(
+         'DELETE FROM users WHERE username = ?',
+         [email]
+      );
       await connection.commit();
-      connection.release();
 
-      res.status(200).json({ message: 'Employee and user details deleted successfully' });
+      res.status(200).json({
+         message: 'Employee deleted successfully from both tables.',
+         deletedFromEmployeeData: empResult.affectedRows,
+         deletedFromUsers: userResult.affectedRows
+      });
    } catch (error) {
-      // Rollback in case of any error
       await connection.rollback();
-      connection.release();
       console.error('Error deleting employee:', error);
-      res.status(500).json({ error: 'Failed to delete employee' });
+      res.status(500).json({ message: 'Internal server error.' });
+   } finally {
+      connection.release();
    }
 });
 
@@ -1219,65 +1134,121 @@ router.put('/approve-leave/:id', async (req, res) => {
 router.put('/reject-leave/:id', async (req, res) => {
    const leaveId = req.params.id;
    const { status } = req.body;
+
    if (!status) {
       return res.status(400).json({ error: 'Status is required' });
    }
 
+   const connection = await con.getConnection();
+
    try {
-      const query = `UPDATE leaves_application SET status = ? WHERE id = ?`;
-      const [result] = await con.query(query, [status, leaveId]);
-      if (result.affectedRows > 0) {
-         res.status(200).json({ message: 'Leave application rejected successfully.' });
-      } else {
-         res.status(404).json({ message: 'Leave application not found.' });
+      await connection.beginTransaction();
+
+      const [leaveDetails] = await connection.query(
+         `SELECT emp_id, from_date, to_date, duration, holiday_taken, holiday_remaining
+          FROM leaves_application WHERE id = ?`,
+         [leaveId]
+      );
+
+      if (leaveDetails.length === 0) {
+         await connection.rollback();
+         return res.status(404).json({ message: 'Leave application not found.' });
       }
+
+      const leaveData = leaveDetails[0];
+      const { emp_id, duration, holiday_taken, holiday_remaining } = leaveData;
+
+      const durationValue = parseFloat(duration);
+      const holidayTakenValue = parseFloat(holiday_taken);
+      const holidayRemainingValue = parseFloat(holiday_remaining);
+
+      const updatedHolidayTaken = holidayTakenValue - durationValue;
+      const updatedHolidayRemaining = holidayRemainingValue + durationValue;
+
+      const updateLeaveApplicationQuery = `
+         UPDATE leaves_application
+         SET status = ?, holiday_taken = ?, holiday_remaining = ?
+         WHERE id = ?`;
+      await connection.query(updateLeaveApplicationQuery, [
+         status,
+         updatedHolidayTaken,
+         updatedHolidayRemaining,
+         leaveId,
+      ]);
+
+      const [leavesData] = await connection.query(
+         `SELECT total_leaves FROM leaves WHERE emp_id = ?`,
+         [emp_id]
+      );
+
+      if (leavesData.length === 0) {
+         await connection.rollback();
+         return res.status(404).json({ message: 'Employee leave data not found.' });
+      }
+
+      const totalLeaves = parseFloat(leavesData[0].total_leaves);
+      const updatedTotalLeaves = totalLeaves + durationValue;
+
+      const updateLeavesQuery = `
+         UPDATE leaves SET total_leaves = ? WHERE emp_id = ?`;
+      await connection.query(updateLeavesQuery, [updatedTotalLeaves, emp_id]);
+      await connection.commit();
+
+      res.status(200).json({
+         message: 'Leave application rejected successfully.',
+      });
    } catch (err) {
+      await connection.rollback();
       console.error('Error rejecting leave application:', err);
-      res.status(500).json({ error: 'Database update failed.' });
+      res.status(500).json({ error: 'Failed to reject leave application.' });
+   } finally {
+      connection.release();
+   }
+});
+
+//All employee leaves details
+router.get('/all-employee/leaves', async (req, res) => {
+   try {
+      const query = `
+           SELECT
+               e.emp_id,
+               CONCAT(e.first_name, ' ', e.last_name) AS employee_name,
+               e.holiday AS total_leaves,
+               COALESCE(SUM(l.holiday_taken), 0) AS leaves_taken,
+               COALESCE(SUM(l.holiday_remaining), 0) AS leaves_remaining
+           FROM
+               employee_data e
+           LEFT JOIN
+               leaves_application l ON e.emp_id = l.emp_id
+           GROUP BY
+               e.emp_id
+       `;
+
+      const [results] = await con.execute(query);
+
+      res.status(200).json(results);
+   } catch (error) {
+      console.error('Error fetching employee leave details:', error);
+      res.status(500).json({ message: 'Internal server error' });
    }
 });
 
 //Dashboard
-router.get('/employee-status', async (req, res) => {
-   const daysAhead = 30;
-
-   const query = `
-       SELECT
-           (SELECT COUNT(*) FROM employee_data) AS total_employees,
-           first_name, last_name, dob
-       FROM
-           employee_data
-       WHERE
-           (MONTH(SUBSTRING(dob, 1, 10)) = MONTH(CURDATE()) AND DAY(SUBSTRING(dob, 1, 10)) >= DAY(CURDATE()))
-           OR
-           (MONTH(SUBSTRING(dob, 1, 10)) = MONTH(DATE_ADD(CURDATE(), INTERVAL ? DAY))
-           AND DAY(SUBSTRING(dob, 1, 10)) <= DAY(DATE_ADD(CURDATE(), INTERVAL ? DAY)))
-           OR
-           (MONTH(SUBSTRING(dob, 1, 10)) = MONTH(DATE_ADD(CURDATE(), INTERVAL ? DAY)) AND DAY(SUBSTRING(dob, 1, 10)) >= 1)
-   `;
+router.get('/employees-count', async (req, res) => {
+   const query = 'SELECT COUNT(*) AS total_employees FROM employee_data';
 
    try {
-      const [results] = await con.query(query, [daysAhead, daysAhead, daysAhead]);
-
+      const [results] = await con.query(query);
       const totalEmployees = results[0].total_employees;
-      const upcomingBirthdays = results
-         .filter(emp => emp.first_name && emp.last_name && emp.dob)
-         .map(emp => ({
-            first_name: emp.first_name,
-            last_name: emp.last_name,
-            dob: emp.dob
-         }));
-
       res.status(200).json({
-         message: upcomingBirthdays.length > 0 ? 'Employee data fetched successfully' : 'No upcoming birthdays found',
+         message: 'Total employees count fetched successfully',
          data: {
-            total_employees: totalEmployees,
-            upcoming_birthdays: upcomingBirthdays
+            total_employees: totalEmployees
          }
       });
    } catch (err) {
-      console.error('Database query error:', err);
-      return res.status(500).json({ error: 'Database error' });
+      console.error('Database query error:', err.message);
+      return res.status(500).json({ error: 'Database error', details: err.message });
    }
 });
 
@@ -1416,15 +1387,22 @@ router.get('/fetch-documents', async (req, res) => {
       const { role, emp_id } = req.query;
 
       if (role === 'ADMIN') {
-         const [documents] = await con.query('SELECT id, sender, receiver, doc_file,date,created_at FROM documents');
+         const [documents] = await con.query('SELECT id, sender, receiver, doc_file, date, created_at FROM documents');
          res.status(200).json({ success: true, data: documents });
       } else if (role === 'EMPLOYEE') {
+         const [employee] = await con.query('SELECT joining_date FROM employee_data WHERE emp_id = ?', [emp_id]);
+         if (!employee.length) {
+            return res.status(404).json({ success: false, message: 'Employee not found' });
+         }
+         const joiningDate = employee[0].joining_date;
          const [documents] = await con.query(
-            `SELECT id, sender, receiver, doc_file,date,created_at
+            `SELECT id, sender, receiver, doc_file, date, created_at
              FROM documents
-             WHERE receiver = ? OR receiver = '0' OR sender = ?`,
-            [emp_id, emp_id]
+             WHERE (receiver = ? OR receiver = '0' OR sender = ?)
+             AND date >= ?`,
+            [emp_id, emp_id, joiningDate]
          );
+
          res.status(200).json({
             message: documents.length > 0 ? 'Documents fetched successfully.' : 'No documents found.',
             data: documents
