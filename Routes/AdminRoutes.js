@@ -201,7 +201,7 @@ router.post('/add-department', async (req, res) => {
 
       const [result] = await con.query(sql, values);
 
-      res.status(201).json({ message: 'Department added successfully', id: result.insertId });
+      res.status(200).json({ message: 'Department added successfully', id: result.insertId });
    } catch (err) {
       console.error('Error adding department:', err);
       res.status(500).json({ error: 'Database insertion failed' });
@@ -1215,7 +1215,14 @@ router.get('/all-employee/leaves', async (req, res) => {
                CONCAT(e.first_name, ' ', e.last_name) AS employee_name,
                e.holiday AS total_leaves,
                COALESCE(SUM(l.holiday_taken), 0) AS leaves_taken,
-               COALESCE(SUM(l.holiday_remaining), 0) AS leaves_remaining
+               COALESCE(
+                   (SELECT l2.holiday_remaining
+                    FROM leaves_application l2
+                    WHERE l2.emp_id = e.emp_id
+                    ORDER BY l2.updated_at DESC
+                    LIMIT 1),
+                   e.holiday
+               ) AS leaves_remaining
            FROM
                employee_data e
            LEFT JOIN
@@ -1678,9 +1685,9 @@ router.get('/get-notification', async (req, res) => {
       let params = [];
 
       if (role === 'ADMIN') {
-         query = 'SELECT message, date FROM notification WHERE receiver = 1';
+         query = 'SELECT id, message, date, status FROM notification WHERE receiver = 1 AND status = 0';
       } else if (role === 'EMPLOYEE') {
-         query = 'SELECT message, date FROM notification WHERE receiver = ?';
+         query = 'SELECT id, message, date, status FROM notification WHERE receiver = ? AND status = 0';
          params = [emp_id];
       } else {
          return res.status(400).json({ error: 'Invalid role provided.' });
@@ -1699,6 +1706,25 @@ router.get('/get-notification', async (req, res) => {
    }
 });
 
+//update notification
+router.put('/update-notification', async (req, res) => {
+   const { notificationIds } = req.body;
+
+   if (!notificationIds || notificationIds.length === 0) {
+      return res.status(400).json({ error: 'No notifications provided to update.' });
+   }
+
+   try {
+      const placeholders = notificationIds.map(() => '?').join(',');
+      const query = `UPDATE notification SET status = 1 WHERE id IN (${placeholders})`;
+      await con.query(query, notificationIds);
+
+      res.status(200).json({ message: 'Notification statuses updated successfully.' });
+   } catch (error) {
+      console.error('Error updating notification statuses:', error);
+      res.status(500).json({ error: 'An error occurred while updating notifications.' });
+   }
+});
 
 router.get('/logout', (req, res) => {
    res.clearCookie('token');
