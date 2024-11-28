@@ -790,19 +790,39 @@ router.delete('/delete/project/:id', async (req, res) => {
 router.post('/add-attendance', async (req, res) => {
    const { emp_id, first_name, last_name, attendance_date, attendance_login_time, attendance_logout_time } = req.body;
 
-   if (!emp_id || !first_name || !last_name || !attendance_date || !attendance_login_time || !attendance_logout_time) {
-      return res.status(400).json({ error: 'All fields are required' });
+   if (!emp_id || !first_name || !last_name || !attendance_date) {
+      return res.status(400).json({ error: 'emp_id, first_name, last_name, and attendance_date are required' });
    }
 
    try {
-      const sql = `
-           INSERT INTO attendance (emp_id, first_name, last_name, attendance_date, attendance_login_time, attendance_logout_time)
-           VALUES (?, ?, ?, ?, ?, ?)`;
-      const [result] = await con.query(sql, [emp_id, first_name, last_name, attendance_date, attendance_login_time, attendance_logout_time]);
+      // Check if an entry already exists for this employee on the given date
+      const checkSql = `SELECT id FROM attendance WHERE emp_id = ? AND attendance_date = ?`;
+      const [existingRecord] = await con.query(checkSql, [emp_id, attendance_date]);
 
-      res.status(200).json({ message: 'Attendance saved successfully', id: result.insertId });
+      if (!existingRecord.length) {
+         // No existing record: Insert a new row with login time
+         const insertSql = `
+            INSERT INTO attendance (emp_id, first_name, last_name, attendance_date, attendance_login_time)
+            VALUES (?, ?, ?, ?, ?)`;
+         const [result] = await con.query(insertSql, [emp_id, first_name, last_name, attendance_date, attendance_login_time]);
+
+         return res.status(200).json({ message: 'Attendance saved successfully', id: result.insertId });
+      } else {
+         // Existing record found: Update logout time
+         if (!attendance_logout_time) {
+            return res.status(400).json({ error: 'Logout time is required for updating attendance' });
+         }
+
+         const updateSql = `
+            UPDATE attendance
+            SET attendance_logout_time = ?
+            WHERE id = ?`;
+         await con.query(updateSql, [attendance_logout_time, existingRecord[0].id]);
+
+         return res.status(200).json({ message: 'Attendance logout time updated successfully', id: existingRecord[0].id });
+      }
    } catch (err) {
-      console.error('Error saving attendance:', err);
+      console.error('Error handling attendance:', err);
       res.status(500).json({ error: 'Database operation failed' });
    }
 });
