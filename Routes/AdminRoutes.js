@@ -683,7 +683,7 @@ router.delete('/delete/employee/:email', async (req, res) => {
 router.post('/add-project', async (req, res) => {
    const { project_title, project_description, project_start_date, project_end_date, project_assign_to } = req.body;
 
-   if (!project_title || !project_description || !project_start_date || !project_end_date || !project_assign_to) {
+   if (!project_title || !project_description || !project_start_date || !project_assign_to) {
       return res.status(400).json({ error: 'All fields are required' });
    }
 
@@ -942,6 +942,64 @@ router.post('/fetch-attendance', async (req, res) => {
 });
 
 //Leaves
+// router.post('/add-leaves', async (req, res) => {
+//    const { emp_id, from_date, to_date, duration, description, first_name, last_name } = req.body;
+
+//    const todayDate = new Date().toISOString().slice(0, 10);
+
+//    try {
+//       const leaveQuery = 'SELECT total_leaves FROM leaves WHERE emp_id = ?';
+//       const [leaveResult] = await con.query(leaveQuery, [emp_id]);
+
+//       if (leaveResult.length > 0) {
+//          let total_leaves = leaveResult[0].total_leaves;
+//          if (total_leaves < duration) {
+//             return res.status(400).json({ message: 'Not enough leaves available.' });
+//          }
+
+//          const updatedLeaves = total_leaves - duration;
+//          const updateLeavesQuery = 'UPDATE leaves SET total_leaves = ? WHERE emp_id = ?';
+//          await con.query(updateLeavesQuery, [updatedLeaves, emp_id]);
+
+//          const leaveApplicationQuery = `
+//                INSERT INTO leaves_application
+//                (emp_id, from_date, to_date, holiday_taken, holiday_remaining, duration, description, status)
+//                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+
+//          await con.query(leaveApplicationQuery, [
+//             emp_id,
+//             from_date,
+//             to_date,
+//             duration,
+//             updatedLeaves,
+//             duration,
+//             description,
+//             1
+//          ]);
+
+//          const notificationMessage = `${first_name} ${last_name} has requested leave.`;
+//          const notificationQuery = `
+//                INSERT INTO notification
+//                (sender, receiver, message, date)
+//                VALUES (?, ?, ?, ?)`;
+
+//          await con.query(notificationQuery, [
+//             emp_id,
+//             1,
+//             notificationMessage,
+//             todayDate
+//          ]);
+
+//          res.status(200).json({ message: 'Leave request successfully submitted.' });
+//       } else {
+//          res.status(404).json({ message: 'Employee not found.' });
+//       }
+//    } catch (error) {
+//       console.error('Error occurred while processing the leave request:', error);
+//       res.status(500).json({ error: 'An error occurred while processing the leave request.' });
+//    }
+// });
+
 router.post('/add-leaves', async (req, res) => {
    const { emp_id, from_date, to_date, duration, description, first_name, last_name } = req.body;
 
@@ -953,14 +1011,8 @@ router.post('/add-leaves', async (req, res) => {
 
       if (leaveResult.length > 0) {
          let total_leaves = leaveResult[0].total_leaves;
-         if (total_leaves < duration) {
-            return res.status(400).json({ message: 'Not enough leaves available.' });
-         }
 
-         const updatedLeaves = total_leaves - duration;
-         const updateLeavesQuery = 'UPDATE leaves SET total_leaves = ? WHERE emp_id = ?';
-         await con.query(updateLeavesQuery, [updatedLeaves, emp_id]);
-
+         // No deduction or addition of leaves taken
          const leaveApplicationQuery = `
                INSERT INTO leaves_application
                (emp_id, from_date, to_date, holiday_taken, holiday_remaining, duration, description, status)
@@ -970,11 +1022,11 @@ router.post('/add-leaves', async (req, res) => {
             emp_id,
             from_date,
             to_date,
-            duration,
-            updatedLeaves,
-            duration,
+            0,  // "holiday_taken" is set to 0 since no leave is deducted at this point
+            total_leaves,  // "holiday_remaining" remains as it was
+            duration,  // "duration" remains the same
             description,
-            1
+            1  // status set as "requested" or "pending"
          ]);
 
          const notificationMessage = `${first_name} ${last_name} has requested leave.`;
@@ -985,7 +1037,7 @@ router.post('/add-leaves', async (req, res) => {
 
          await con.query(notificationQuery, [
             emp_id,
-            1,
+            1,  // Assuming the receiver is admin (emp_id = 1)
             notificationMessage,
             todayDate
          ]);
@@ -1129,21 +1181,68 @@ router.get('/all-leaves', async (req, res) => {
 });
 
 //Approve leaves
+// router.put('/approve-leave/:id', async (req, res) => {
+//    const leaveId = req.params.id;
+//    const { status } = req.body;
+//    if (!status) {
+//       return res.status(400).json({ error: 'Status is required' });
+//    }
+
+//    try {
+//       const query = `UPDATE leaves_application SET status = ? WHERE id = ?`;
+//       const [result] = await con.query(query, [status, leaveId]);
+//       if (result.affectedRows > 0) {
+//          res.status(200).json({ message: 'Leave status updated successfully.' });
+//       } else {
+//          res.status(404).json({ message: 'Leave application not found.' });
+//       }
+//    } catch (err) {
+//       console.error('Error updating leave status:', err);
+//       res.status(500).json({ error: 'Database update failed.' });
+//    }
+// });
+
 router.put('/approve-leave/:id', async (req, res) => {
    const leaveId = req.params.id;
    const { status } = req.body;
+
    if (!status) {
       return res.status(400).json({ error: 'Status is required' });
    }
 
    try {
-      const query = `UPDATE leaves_application SET status = ? WHERE id = ?`;
-      const [result] = await con.query(query, [status, leaveId]);
-      if (result.affectedRows > 0) {
-         res.status(200).json({ message: 'Leave status updated successfully.' });
-      } else {
-         res.status(404).json({ message: 'Leave application not found.' });
+      const leaveApplicationQuery = 'SELECT emp_id, duration FROM leaves_application WHERE id = ?';
+      const [leaveApplicationResult] = await con.query(leaveApplicationQuery, [leaveId]);
+
+      if (leaveApplicationResult.length === 0) {
+         return res.status(404).json({ message: 'Leave application not found.' });
       }
+
+      const { emp_id, duration } = leaveApplicationResult[0];
+
+      const updateLeaveApplicationQuery = `
+         UPDATE leaves_application
+         SET status = ?, holiday_taken = ?
+         WHERE id = ?
+      `;
+      await con.query(updateLeaveApplicationQuery, [status, duration, leaveId]);
+
+      const leaveQuery = 'SELECT total_leaves FROM leaves WHERE emp_id = ?';
+      const [leaveResult] = await con.query(leaveQuery, [emp_id]);
+
+      if (leaveResult.length === 0) {
+         return res.status(404).json({ message: 'Employee not found.' });
+      }
+
+      let total_leaves = leaveResult[0].total_leaves;
+
+      const updatedTotalLeaves = total_leaves - duration;
+
+      const updateLeaveQuery = 'UPDATE leaves SET total_leaves = ? WHERE emp_id = ?';
+      await con.query(updateLeaveQuery, [updatedTotalLeaves, emp_id]);
+
+      res.status(200).json({ message: 'Leave status updated and leaves deducted successfully.' });
+
    } catch (err) {
       console.error('Error updating leave status:', err);
       res.status(500).json({ error: 'Database update failed.' });
@@ -1151,6 +1250,81 @@ router.put('/approve-leave/:id', async (req, res) => {
 });
 
 //Reject leaves
+// router.put('/reject-leave/:id', async (req, res) => {
+//    const leaveId = req.params.id;
+//    const { status } = req.body;
+
+//    if (!status) {
+//       return res.status(400).json({ error: 'Status is required' });
+//    }
+
+//    const connection = await con.getConnection();
+
+//    try {
+//       await connection.beginTransaction();
+
+//       const [leaveDetails] = await connection.query(
+//          `SELECT emp_id, from_date, to_date, duration, holiday_taken, holiday_remaining
+//           FROM leaves_application WHERE id = ?`,
+//          [leaveId]
+//       );
+
+//       if (leaveDetails.length === 0) {
+//          await connection.rollback();
+//          return res.status(404).json({ message: 'Leave application not found.' });
+//       }
+
+//       const leaveData = leaveDetails[0];
+//       const { emp_id, duration, holiday_taken, holiday_remaining } = leaveData;
+
+//       const durationValue = parseFloat(duration);
+//       const holidayTakenValue = parseFloat(holiday_taken);
+//       const holidayRemainingValue = parseFloat(holiday_remaining);
+
+//       const updatedHolidayTaken = holidayTakenValue - durationValue;
+//       const updatedHolidayRemaining = holidayRemainingValue + durationValue;
+
+//       const updateLeaveApplicationQuery = `
+//          UPDATE leaves_application
+//          SET status = ?, holiday_taken = ?, holiday_remaining = ?
+//          WHERE id = ?`;
+//       await connection.query(updateLeaveApplicationQuery, [
+//          status,
+//          updatedHolidayTaken,
+//          updatedHolidayRemaining,
+//          leaveId,
+//       ]);
+
+//       const [leavesData] = await connection.query(
+//          `SELECT total_leaves FROM leaves WHERE emp_id = ?`,
+//          [emp_id]
+//       );
+
+//       if (leavesData.length === 0) {
+//          await connection.rollback();
+//          return res.status(404).json({ message: 'Employee leave data not found.' });
+//       }
+
+//       const totalLeaves = parseFloat(leavesData[0].total_leaves);
+//       const updatedTotalLeaves = totalLeaves + durationValue;
+
+//       const updateLeavesQuery = `
+//          UPDATE leaves SET total_leaves = ? WHERE emp_id = ?`;
+//       await connection.query(updateLeavesQuery, [updatedTotalLeaves, emp_id]);
+//       await connection.commit();
+
+//       res.status(200).json({
+//          message: 'Leave application rejected successfully.',
+//       });
+//    } catch (err) {
+//       await connection.rollback();
+//       console.error('Error rejecting leave application:', err);
+//       res.status(500).json({ error: 'Failed to reject leave application.' });
+//    } finally {
+//       connection.release();
+//    }
+// });
+
 router.put('/reject-leave/:id', async (req, res) => {
    const leaveId = req.params.id;
    const { status } = req.body;
@@ -1159,70 +1333,32 @@ router.put('/reject-leave/:id', async (req, res) => {
       return res.status(400).json({ error: 'Status is required' });
    }
 
-   const connection = await con.getConnection();
-
    try {
-      await connection.beginTransaction();
-
-      const [leaveDetails] = await connection.query(
-         `SELECT emp_id, from_date, to_date, duration, holiday_taken, holiday_remaining
-          FROM leaves_application WHERE id = ?`,
+      const [leaveDetails] = await con.query(
+         `SELECT id FROM leaves_application WHERE id = ?`,
          [leaveId]
       );
 
       if (leaveDetails.length === 0) {
-         await connection.rollback();
          return res.status(404).json({ message: 'Leave application not found.' });
       }
 
-      const leaveData = leaveDetails[0];
-      const { emp_id, duration, holiday_taken, holiday_remaining } = leaveData;
-
-      const durationValue = parseFloat(duration);
-      const holidayTakenValue = parseFloat(holiday_taken);
-      const holidayRemainingValue = parseFloat(holiday_remaining);
-
-      const updatedHolidayTaken = holidayTakenValue - durationValue;
-      const updatedHolidayRemaining = holidayRemainingValue + durationValue;
-
       const updateLeaveApplicationQuery = `
          UPDATE leaves_application
-         SET status = ?, holiday_taken = ?, holiday_remaining = ?
+         SET status = ?
          WHERE id = ?`;
-      await connection.query(updateLeaveApplicationQuery, [
-         status,
-         updatedHolidayTaken,
-         updatedHolidayRemaining,
-         leaveId,
-      ]);
+      const [updateResult] = await con.query(updateLeaveApplicationQuery, [status, leaveId]);
 
-      const [leavesData] = await connection.query(
-         `SELECT total_leaves FROM leaves WHERE emp_id = ?`,
-         [emp_id]
-      );
-
-      if (leavesData.length === 0) {
-         await connection.rollback();
-         return res.status(404).json({ message: 'Employee leave data not found.' });
+      if (updateResult.affectedRows > 0) {
+         return res.status(200).json({
+            message: 'Leave application rejected successfully.',
+         });
+      } else {
+         return res.status(500).json({ error: 'Failed to reject leave application.' });
       }
-
-      const totalLeaves = parseFloat(leavesData[0].total_leaves);
-      const updatedTotalLeaves = totalLeaves + durationValue;
-
-      const updateLeavesQuery = `
-         UPDATE leaves SET total_leaves = ? WHERE emp_id = ?`;
-      await connection.query(updateLeavesQuery, [updatedTotalLeaves, emp_id]);
-      await connection.commit();
-
-      res.status(200).json({
-         message: 'Leave application rejected successfully.',
-      });
    } catch (err) {
-      await connection.rollback();
       console.error('Error rejecting leave application:', err);
-      res.status(500).json({ error: 'Failed to reject leave application.' });
-   } finally {
-      connection.release();
+      return res.status(500).json({ error: 'Internal server error.' });
    }
 });
 
