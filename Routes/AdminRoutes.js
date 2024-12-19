@@ -463,7 +463,7 @@ router.post('/add-employee', upload.fields([
          from: 'janaramesh15@gmail.com',
          to: initialValues.email,
          subject: 'Welcome to Radiance IT',
-         text: `Dear ${initialValues.first_name},\n\nWe are pleased to inform you that your employee account with Radiance IT has been successfully created.\n\nLogin URL: https://hrm-frontend-bice.vercel.app/\nUsername: ${initialValues.email}\nPassword: ${defaultPassword}\n\nFor security reasons, please change your password immediately after logging in.\n\nIf you have any questions or need assistance, feel free to reach out to our support team.\n\nBest regards,\nRadiance IT Team`
+         text: `Dear ${initialValues.first_name},\n\nWe are pleased to inform you that your employee account with Radiance IT has been successfully created.\n\nLogin URL:https://radiancehrm.uk/\nUsername: ${initialValues.email}\nPassword: ${defaultPassword}\n\nFor security reasons, please change your password immediately after logging in.\n\nIf you have any questions or need assistance, feel free to reach out to our support team.\n\nBest regards,\nRadiance IT Team`
       };
 
       transporter.sendMail(mailOptions, (mailErr) => {
