@@ -64,27 +64,113 @@ const transporter = nodemailer.createTransport({
 });
 
 //Authenticate
+// router.post('/authenticate', async (req, res) => {
+//    const { user_name, user_password } = req.body;
+
+//    if (!user_name || !user_password) {
+//       return res.status(400).json({ loginStatus: false, Error: "Username and password are required" });
+//    }
+
+//    const sql = 'SELECT * FROM users WHERE username = ?';
+
+//    try {
+//       const [result] = await con.query(sql, [user_name]);
+
+//       if (result.length === 0) {
+//          return res.status(404).json({ loginStatus: false, Error: "User not found" });
+//       }
+
+//       const user = result[0];
+//       const match = await bcrypt.compare(user_password, user.password);
+//       if (!match) {
+//          return res.status(401).json({ loginStatus: false, Error: "Incorrect username or password" });
+//       }
+//       const expiresIn = 1 * 60 * 60;
+//       const token = jwt.sign(
+//          { emp_id: user.emp_id, role: user.role_name },
+//          JWT_SECRET_KEY,
+//          { expiresIn }
+//       );
+//       const token_expired_on = new Date(Date.now() + expiresIn * 1000).toISOString();
+//       const updateTokenSql = 'UPDATE users SET token = ?, updated_at = ? WHERE id = ?';
+//       await con.execute(updateTokenSql, [token, new Date(), user.id]);
+//       const empSql = "SELECT emp_id, first_name, last_name FROM employee_data WHERE email = ?";
+//       const [empResult] = await con.query(empSql, [user.username]);
+
+//       const responseData = {
+//          loginStatus: true,
+//          userData: {
+//             id: user.id,
+//             username: user.username,
+//             role_id: user.role_id,
+//             role_name: user.role_name,
+//             token: token,
+//             token_expired_on: token_expired_on,
+//             is_default_pwd: user.is_default_pwd,
+//             message: `${user.role_name} login successful`
+//          }
+//       };
+
+//       if (empResult.length > 0) {
+//          const employee = empResult[0];
+//          responseData.userData.emp_id = employee.emp_id;
+//          responseData.userData.first_name = employee.first_name;
+//          responseData.userData.last_name = employee.last_name;
+//       } else {
+//          responseData.userData.message += " (No employee data found)";
+//       }
+
+//       return res.json(responseData);
+//    } catch (error) {
+//       console.error("Error during login process:", error);
+//       return res.status(500).json({ loginStatus: false, Error: "Internal server error" });
+//    }
+// });
+
 router.post('/authenticate', async (req, res) => {
    const { user_name, user_password } = req.body;
-
    if (!user_name || !user_password) {
-      return res.status(400).json({ loginStatus: false, Error: "Username and password are required" });
+      return res.status(400).json({
+         loginStatus: false,
+         Error: "Username and password are required",
+      });
    }
 
-   const sql = 'SELECT * FROM users WHERE username = ?';
-
    try {
+      const sql = 'SELECT * FROM users WHERE username = ?';
       const [result] = await con.query(sql, [user_name]);
 
+      // Check if user exists
       if (result.length === 0) {
-         return res.status(404).json({ loginStatus: false, Error: "User not found" });
+         return res.status(404).json({
+            loginStatus: false,
+            Error: "User not found",
+         });
       }
 
       const user = result[0];
+      if (Number(user.status) !== 1) {
+         return res.status(403).json({
+            loginStatus: false,
+            Error:
+               Number(user.status === 2)
+                  ? "Access denied. Job Left"
+                  : Number(user.status === 3)
+                     ? "Access denied. Suspended"
+                     : Number(user.status === 4)
+                        ? "Access denied. Terminated"
+                        : "Access denied. Unknown status",
+         });
+      }
+
       const match = await bcrypt.compare(user_password, user.password);
       if (!match) {
-         return res.status(401).json({ loginStatus: false, Error: "Incorrect username or password" });
+         return res.status(401).json({
+            loginStatus: false,
+            Error: "Incorrect username or password",
+         });
       }
+
       const expiresIn = 1 * 60 * 60;
       const token = jwt.sign(
          { emp_id: user.emp_id, role: user.role_name },
@@ -92,8 +178,10 @@ router.post('/authenticate', async (req, res) => {
          { expiresIn }
       );
       const token_expired_on = new Date(Date.now() + expiresIn * 1000).toISOString();
+
       const updateTokenSql = 'UPDATE users SET token = ?, updated_at = ? WHERE id = ?';
       await con.execute(updateTokenSql, [token, new Date(), user.id]);
+
       const empSql = "SELECT emp_id, first_name, last_name FROM employee_data WHERE email = ?";
       const [empResult] = await con.query(empSql, [user.username]);
 
@@ -107,8 +195,8 @@ router.post('/authenticate', async (req, res) => {
             token: token,
             token_expired_on: token_expired_on,
             is_default_pwd: user.is_default_pwd,
-            message: `${user.role_name} login successful`
-         }
+            message: `${user.role_name} login successful`,
+         },
       };
 
       if (empResult.length > 0) {
@@ -116,14 +204,15 @@ router.post('/authenticate', async (req, res) => {
          responseData.userData.emp_id = employee.emp_id;
          responseData.userData.first_name = employee.first_name;
          responseData.userData.last_name = employee.last_name;
-      } else {
-         responseData.userData.message += " (No employee data found)";
       }
 
       return res.json(responseData);
    } catch (error) {
-      console.error("Error during login process:", error);
-      return res.status(500).json({ loginStatus: false, Error: "Internal server error" });
+      console.error("Error during login process:", error.message);
+      return res.status(500).json({
+         loginStatus: false,
+         Error: "Internal server error",
+      });
    }
 });
 
@@ -643,39 +732,131 @@ router.put('/update-employee/:emp_id', upload.fields([
 });
 
 //Delete Emp
+// router.delete('/delete/employee/:email', async (req, res) => {
+//    const { email } = req.params;
+
+//    const connection = await con.getConnection();
+//    try {
+//       await connection.beginTransaction();
+
+//       const [empResult] = await connection.execute(
+//          'DELETE FROM employee_data WHERE email = ?',
+//          [email]
+//       );
+
+//       if (empResult.affectedRows === 0) {
+//          await connection.rollback();
+//          return res.status(404).json({ message: 'Employee not found.' });
+//       }
+//       const [userResult] = await connection.execute(
+//          'DELETE FROM users WHERE username = ?',
+//          [email]
+//       );
+//       await connection.commit();
+
+//       res.status(200).json({
+//          message: 'Employee deleted successfully from both tables.',
+//          deletedFromEmployeeData: empResult.affectedRows,
+//          deletedFromUsers: userResult.affectedRows
+//       });
+//    } catch (error) {
+//       await connection.rollback();
+//       console.error('Error deleting employee:', error);
+//       res.status(500).json({ message: 'Internal server error.' });
+//    } finally {
+//       connection.release();
+//    }
+// });
+
 router.delete('/delete/employee/:email', async (req, res) => {
    const { email } = req.params;
 
-   const connection = await con.getConnection();
+   let connection;
    try {
+      connection = await con.getConnection();
+
       await connection.beginTransaction();
+
+      const [empDataResult] = await connection.execute(
+         'SELECT emp_id FROM employee_data WHERE email = ?',
+         [email]
+      );
+
+      if (empDataResult.length === 0) {
+         await connection.rollback();
+         return res.status(404).json({ message: 'Employee not found.' });
+      }
+
+      const empId = empDataResult[0].emp_id;
 
       const [empResult] = await connection.execute(
          'DELETE FROM employee_data WHERE email = ?',
          [email]
       );
 
-      if (empResult.affectedRows === 0) {
-         await connection.rollback();
-         return res.status(404).json({ message: 'Employee not found.' });
-      }
       const [userResult] = await connection.execute(
          'DELETE FROM users WHERE username = ?',
          [email]
       );
+      const [attendanceResult] = await connection.execute(
+         'DELETE FROM attendance WHERE emp_id = ?',
+         [empId]
+      );
+
+      const [documentsResult] = await connection.execute(
+         'DELETE FROM documents WHERE sender = ? OR receiver = ?',
+         [empId, empId]
+      );
+
+      const [leavesResult] = await connection.execute(
+         'DELETE FROM leaves WHERE emp_id = ?',
+         [empId]
+      );
+
+      const [leavesAppResult] = await connection.execute(
+         'DELETE FROM leaves_application WHERE emp_id = ?',
+         [empId]
+      );
+
+      const [p60Result] = await connection.execute(
+         'DELETE FROM p60 WHERE receiver = ?',
+         [empId]
+      );
+
+      const [paySlipsResult] = await connection.execute(
+         'DELETE FROM pay_slips WHERE receiver = ?',
+         [empId]
+      );
+
+      const [projectsResult] = await connection.execute(
+         'DELETE FROM projects WHERE project_assign_to = ?',
+         [empId]
+      );
+
       await connection.commit();
 
       res.status(200).json({
-         message: 'Employee deleted successfully from both tables.',
+         message: 'Employee and related data deleted successfully.',
          deletedFromEmployeeData: empResult.affectedRows,
-         deletedFromUsers: userResult.affectedRows
+         deletedFromUsers: userResult.affectedRows,
+         deletedFromAttendance: attendanceResult.affectedRows,
+         deletedFromDocuments: documentsResult.affectedRows,
+         deletedFromLeaves: leavesResult.affectedRows,
+         deletedFromLeavesApplication: leavesAppResult.affectedRows,
+         deletedFromP60: p60Result.affectedRows,
+         deletedFromPaySlips: paySlipsResult.affectedRows,
+         deletedFromProjects: projectsResult.affectedRows,
       });
    } catch (error) {
-      await connection.rollback();
+      if (connection) {
+         await connection.rollback();
+      }
       console.error('Error deleting employee:', error);
       res.status(500).json({ message: 'Internal server error.' });
    } finally {
-      connection.release();
+      if (connection) {
+         connection.release();
+      }
    }
 });
 
