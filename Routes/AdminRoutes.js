@@ -577,19 +577,53 @@ router.post('/add-employee', upload.fields([
 
 //List Emp
 router.get('/employees', async (req, res) => {
-   const query = 'SELECT id, first_name, last_name, email, emp_id, nationality, phone, dob,joining_date,emp_department,passport_expiry_date, visa_expiry_date, emp_position, created_at FROM employee_data';
+   const query = `
+      SELECT
+         e.id,
+         e.first_name,
+         e.last_name,
+         e.email,
+         e.emp_id,
+         e.nationality,
+         e.phone,
+         e.dob,
+         e.joining_date,
+         e.emp_department,
+         e.passport_expiry_date,
+         e.visa_expiry_date,
+         e.emp_position,
+         e.created_at,
+         u.status
+      FROM
+         employee_data e
+      LEFT JOIN
+         users u
+      ON
+         e.email = u.username`;
 
    try {
-
       const [results] = await con.query(query);
-      if (results.length > 0) {
+
+      const statusMapping = {
+         1: 'Active',
+         2: 'Job left',
+         3: 'Suspended',
+         4: 'Terminated',
+      };
+
+      const formattedResults = results.map(employee => ({
+         ...employee,
+         status: statusMapping[employee.status] || 'Unknown',
+      }));
+
+      if (formattedResults.length > 0) {
          res.status(200).json({
-            message: 'Employee fetched successfully.',
-            data: results
+            message: 'Employees fetched successfully.',
+            data: formattedResults
          });
       } else {
          res.status(200).json({
-            message: 'No Employee found.',
+            message: 'No Employees found.',
             data: []
          });
       }
