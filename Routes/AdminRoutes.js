@@ -1010,20 +1010,17 @@ router.post('/add-attendance', async (req, res) => {
    }
 
    try {
-      // Check if an entry already exists for this employee on the given date
       const checkSql = `SELECT id FROM attendance WHERE emp_id = ? AND attendance_date = ?`;
       const [existingRecord] = await con.query(checkSql, [emp_id, attendance_date]);
 
       if (!existingRecord.length) {
-         // No existing record: Insert a new row with login time
          const insertSql = `
-            INSERT INTO attendance (emp_id, first_name, last_name, attendance_date, attendance_login_time)
-            VALUES (?, ?, ?, ?, ?)`;
-         const [result] = await con.query(insertSql, [emp_id, first_name, last_name, attendance_date, attendance_login_time]);
+            INSERT INTO attendance (emp_id, first_name, last_name, attendance_date, attendance_login_time,attendance_logout_time)
+            VALUES (?, ?, ?, ?, ?,?)`;
+         const [result] = await con.query(insertSql, [emp_id, first_name, last_name, attendance_date, attendance_login_time, attendance_logout_time]);
 
          return res.status(200).json({ message: 'Attendance saved successfully', id: result.insertId });
       } else {
-         // Existing record found: Update logout time
          if (!attendance_logout_time) {
             return res.status(400).json({ error: 'Logout time is required for updating attendance' });
          }
@@ -1578,6 +1575,39 @@ router.put('/reject-leave/:id', async (req, res) => {
 });
 
 //All employee leaves details
+// router.get('/all-employee/leaves', async (req, res) => {
+//    try {
+//       const query = `
+//            SELECT
+//                e.emp_id,
+//                CONCAT(e.first_name, ' ', e.last_name) AS employee_name,
+//                e.holiday AS total_leaves,
+//                COALESCE(SUM(l.holiday_taken), 0) AS leaves_taken,
+//                COALESCE(
+//                    (SELECT l2.holiday_remaining
+//                     FROM leaves_application l2
+//                     WHERE l2.emp_id = e.emp_id
+//                     ORDER BY l2.updated_at DESC
+//                     LIMIT 1),
+//                    e.holiday
+//                ) AS leaves_remaining
+//            FROM
+//                employee_data e
+//            LEFT JOIN
+//                leaves_application l ON e.emp_id = l.emp_id
+//            GROUP BY
+//                e.emp_id
+//        `;
+
+//       const [results] = await con.execute(query);
+
+//       res.status(200).json(results);
+//    } catch (error) {
+//       console.error('Error fetching employee leave details:', error);
+//       res.status(500).json({ message: 'Internal server error' });
+//    }
+// });
+
 router.get('/all-employee/leaves', async (req, res) => {
    try {
       const query = `
@@ -1585,14 +1615,9 @@ router.get('/all-employee/leaves', async (req, res) => {
                e.emp_id,
                CONCAT(e.first_name, ' ', e.last_name) AS employee_name,
                e.holiday AS total_leaves,
-               COALESCE(SUM(l.holiday_taken), 0) AS leaves_taken,
-               COALESCE(
-                   (SELECT l2.holiday_remaining
-                    FROM leaves_application l2
-                    WHERE l2.emp_id = e.emp_id
-                    ORDER BY l2.updated_at DESC
-                    LIMIT 1),
-                   e.holiday
+               COALESCE(SUM(CASE WHEN l.status = 2 THEN l.holiday_taken ELSE 0 END), 0) AS leaves_taken,
+               e.holiday - COALESCE(
+                   SUM(CASE WHEN l.status = 2 THEN l.holiday_taken ELSE 0 END), 0
                ) AS leaves_remaining
            FROM
                employee_data e
@@ -1610,6 +1635,7 @@ router.get('/all-employee/leaves', async (req, res) => {
       res.status(500).json({ message: 'Internal server error' });
    }
 });
+
 
 //Dashboard
 router.get('/employees-count', async (req, res) => {
