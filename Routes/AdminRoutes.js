@@ -1020,19 +1020,20 @@ router.post('/add-attendance', async (req, res) => {
          const [result] = await con.query(insertSql, [emp_id, first_name, last_name, attendance_date, attendance_login_time, attendance_logout_time]);
 
          return res.status(200).json({ message: 'Attendance saved successfully', id: result.insertId });
-      } else {
-         if (!attendance_logout_time) {
-            return res.status(400).json({ error: 'Logout time is required for updating attendance' });
-         }
-
-         const updateSql = `
-            UPDATE attendance
-            SET attendance_logout_time = ?
-            WHERE id = ?`;
-         await con.query(updateSql, [attendance_logout_time, existingRecord[0].id]);
-
-         return res.status(200).json({ message: 'Attendance logout time updated successfully', id: existingRecord[0].id });
       }
+      // else {
+      //    if (!attendance_logout_time) {
+      //       return res.status(400).json({ error: 'Logout time is required for updating attendance' });
+      //    }
+
+      //    const updateSql = `
+      //       UPDATE attendance
+      //       SET attendance_logout_time = ?
+      //       WHERE id = ?`;
+      //    await con.query(updateSql, [attendance_logout_time, existingRecord[0].id]);
+
+      //    return res.status(200).json({ message: 'Attendance logout time updated successfully', id: existingRecord[0].id });
+      // }
    } catch (err) {
       console.error('Error handling attendance:', err);
       res.status(500).json({ error: 'Database operation failed' });
