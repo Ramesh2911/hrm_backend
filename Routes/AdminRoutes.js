@@ -250,30 +250,37 @@ router.post('/change-password', async (req, res) => {
 });
 
 //Forgot password
-router.post('/forgot-password', async (req, res) => {
-   const { user_name } = req.body;
+router.put('/forgot-password', async (req, res) => {
+   const { user_name, password } = req.body;
+
+   if (!user_name || !password) {
+      return res.status(400).json({ error: 'user_name and password are required.' });
+   }
 
    try {
-      const [results] = await con.execute('SELECT * FROM users WHERE username = ?', [user_name]);
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const [userResult] = await con.execute(
+         `UPDATE users SET password = ?, is_default_pwd = 0 WHERE username = ?`,
+         [hashedPassword, user_name]
+      );
 
-      if (results.length === 0) {
-         return res.status(404).json({ message: 'User not found' });
+      const [employeeResult] = await con.execute(
+         `UPDATE employee_data SET password = ? WHERE email = ?`,
+         [hashedPassword, user_name]
+      );
+
+      if (userResult.affectedRows === 0 && employeeResult.affectedRows === 0) {
+         return res.status(404).json({ error: 'User not found.' });
       }
 
-      const mailOptions = {
-         from: user_name,
-         to: 'janaramesh15@gmail.com',
-         subject: 'Password Reset Request',
-         text: `A password reset request was made for the user with email: ${user_name}.`
-      };
-      await transporter.sendMail(mailOptions);
-      console.log('Email sent successfully');
-
-      res.status(200).json({ message: 'Password reset request sent to admin' });
-
+      res.status(200).json({
+         message: 'Password updated successfully.',
+         users_updated: userResult.affectedRows,
+         employee_data_updated: employeeResult.affectedRows,
+      });
    } catch (error) {
-      console.error('Error:', error);
-      res.status(500).json({ message: 'An error occurred', error });
+      console.error('Error:', error.message);
+      res.status(500).json({ error: 'An error occurred while updating the password.' });
    }
 });
 
