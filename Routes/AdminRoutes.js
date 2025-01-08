@@ -249,7 +249,7 @@ router.post('/change-password', async (req, res) => {
    }
 });
 
-//
+// forgot password
 router.post('/forgot-password', async (req, res) => {
    const { user_name } = req.body;
 
@@ -264,7 +264,7 @@ router.post('/forgot-password', async (req, res) => {
       }
 
       const token = jwt.sign({ id: user[0].id }, JWT_SECRET_KEY, { expiresIn: '1h' });
-      const resetLink = `http://localhost:3001/reset-password/${token}`;
+      const resetLink = `https://radiancehrm.uk/reset-password/${token}`;
 
       const mailOptions = {
          from: 'janaramesh15@gmail.com',
@@ -283,73 +283,30 @@ router.post('/forgot-password', async (req, res) => {
    }
 });
 
-router.get('/reset-password/:token', async (req, res) => {
-   const { token } = req.params;
+router.post('/reset-password', async (req, res) => {
+   const { token, password } = req.body;
 
    try {
-      // Verify token
-      const decoded = jwt.verify(token, JWT_SECRET_KEY);
-      const userId = decoded.id;
+     const decoded = jwt.verify(token, JWT_SECRET_KEY);
 
-      // Render reset password HTML page
-      const resetFormHTML = `
-         <!DOCTYPE html>
-         <html>
-         <head>
-            <title>Reset Password</title>
-         </head>
-         <body>
-            <h1>Reset Your Password</h1>
-            <form action="/reset-password" method="POST">
-               <input type="hidden" name="token" value="${token}" />
-               <label for="newPassword">Enter New Password:</label>
-               <input type="password" id="newPassword" name="newPassword" required />
-               <button type="submit">Reset Password</button>
-            </form>
-         </body>
-         </html>
-      `;
-      res.send(resetFormHTML);
+     if (!decoded) {
+       return res.status(400).json({ message: 'Invalid or expired token' });
+     }
+
+     const hashedPassword = await bcrypt.hash(password, 10);
+
+     const [result] = await con.execute('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, decoded.id]);
+
+     if (result.affectedRows > 0) {
+       res.status(200).json({ message: 'Password reset successful' });
+     } else {
+       res.status(400).json({ message: 'Failed to reset password' });
+     }
    } catch (error) {
-      console.error('Error verifying token:', error);
-      res.status(400).json({ message: 'Invalid or expired token' });
+     console.error('Error resetting password:', error);
+     res.status(500).json({ message: 'An error occurred, please try again later' });
    }
-});
-
-// other Forgot password
-router.put('/forgot-password', async (req, res) => {
-   const { user_name, password } = req.body;
-
-   if (!user_name || !password) {
-      return res.status(400).json({ error: 'user_name and password are required.' });
-   }
-
-   try {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const [userResult] = await con.execute(
-         `UPDATE users SET password = ?, is_default_pwd = 0 WHERE username = ?`,
-         [hashedPassword, user_name]
-      );
-
-      const [employeeResult] = await con.execute(
-         `UPDATE employee_data SET password = ? WHERE email = ?`,
-         [hashedPassword, user_name]
-      );
-
-      if (userResult.affectedRows === 0 && employeeResult.affectedRows === 0) {
-         return res.status(404).json({ error: 'User not found.' });
-      }
-
-      res.status(200).json({
-         message: 'Password updated successfully.',
-         users_updated: userResult.affectedRows,
-         employee_data_updated: employeeResult.affectedRows,
-      });
-   } catch (error) {
-      console.error('Error:', error.message);
-      res.status(500).json({ error: 'An error occurred while updating the password.' });
-   }
-});
+ });
 
 //Add Department
 router.post('/add-department', async (req, res) => {
