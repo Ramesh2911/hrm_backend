@@ -249,7 +249,74 @@ router.post('/change-password', async (req, res) => {
    }
 });
 
-//Forgot password
+//
+router.post('/forgot-password', async (req, res) => {
+   const { user_name } = req.body;
+
+   if (!user_name) {
+      return res.status(400).json({ message: 'Username is required' });
+   }
+
+   try {
+      const [user] = await con.execute('SELECT * FROM users WHERE username = ?', [user_name]);
+      if (user.length === 0) {
+         return res.status(200).json({ message: ' A reset link has been sent' });
+      }
+
+      const token = jwt.sign({ id: user[0].id }, JWT_SECRET_KEY, { expiresIn: '1h' });
+      const resetLink = `http://localhost:3001/reset-password/${token}`;
+
+      const mailOptions = {
+         from: 'janaramesh15@gmail.com',
+         to: user[0].username,
+         subject: 'Password Reset Request',
+         html: `<p>Click the link below to reset your password. The link is valid for 1 hour:</p>
+                  <a href="${resetLink}">${resetLink}</a>`
+      };
+
+      await transporter.sendMail(mailOptions);
+
+      res.status(200).json({ message: 'A reset link has been sent' });
+   } catch (error) {
+      console.error('Error in forgot-password:', error);
+      res.status(500).json({ message: 'An error occurred, please try again later' });
+   }
+});
+
+router.get('/reset-password/:token', async (req, res) => {
+   const { token } = req.params;
+
+   try {
+      // Verify token
+      const decoded = jwt.verify(token, JWT_SECRET_KEY);
+      const userId = decoded.id;
+
+      // Render reset password HTML page
+      const resetFormHTML = `
+         <!DOCTYPE html>
+         <html>
+         <head>
+            <title>Reset Password</title>
+         </head>
+         <body>
+            <h1>Reset Your Password</h1>
+            <form action="/reset-password" method="POST">
+               <input type="hidden" name="token" value="${token}" />
+               <label for="newPassword">Enter New Password:</label>
+               <input type="password" id="newPassword" name="newPassword" required />
+               <button type="submit">Reset Password</button>
+            </form>
+         </body>
+         </html>
+      `;
+      res.send(resetFormHTML);
+   } catch (error) {
+      console.error('Error verifying token:', error);
+      res.status(400).json({ message: 'Invalid or expired token' });
+   }
+});
+
+// other Forgot password
 router.put('/forgot-password', async (req, res) => {
    const { user_name, password } = req.body;
 
