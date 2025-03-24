@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 const PORT = process.env.PORT || 3000;
 
 app.use(cors({
-   origin: ["https://innovextechchnologies.co.in"],
+   origin: ["https://innovextechchnologies.co.in/"],
    methods: ['GET', 'POST', 'PUT', "DELETE"],
    credentials: true
 }));
