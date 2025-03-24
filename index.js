@@ -24,7 +24,7 @@ app.use(express.static('Public'));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get("/", (req, res) => {
-   res.send("Hello World!");
+   res.send("Hello World RJ!");
 });
 
 app.listen(PORT, () => {
