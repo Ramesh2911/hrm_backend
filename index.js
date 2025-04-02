@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 const PORT = process.env.PORT || 3000;
 
 app.use(cors({
-   origin: ["http://localhost:3001"],
+   origin: ["https://hrm-frontend-bice.vercel.app"],
    methods: ['GET', 'POST', 'PUT', "DELETE"],
    credentials: true
 }));
