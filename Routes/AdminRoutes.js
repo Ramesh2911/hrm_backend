@@ -264,7 +264,7 @@ router.post('/forgot-password', async (req, res) => {
       }
 
       const token = jwt.sign({ id: user[0].id }, JWT_SECRET_KEY, { expiresIn: '1h' });
-      const resetLink = `https://radiancehrm.uk/reset-password/${token}`;
+      const resetLink = `http://localhost:3001/reset-password/${token}`;
 
       const mailOptions = {
          from: 'janaramesh15@gmail.com',
@@ -287,26 +287,26 @@ router.post('/reset-password', async (req, res) => {
    const { token, password } = req.body;
 
    try {
-     const decoded = jwt.verify(token, JWT_SECRET_KEY);
+      const decoded = jwt.verify(token, JWT_SECRET_KEY);
 
-     if (!decoded) {
-       return res.status(400).json({ message: 'Invalid or expired token' });
-     }
+      if (!decoded) {
+         return res.status(400).json({ message: 'Invalid or expired token' });
+      }
 
-     const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await bcrypt.hash(password, 10);
 
-     const [result] = await con.execute('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, decoded.id]);
+      const [result] = await con.execute('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, decoded.id]);
 
-     if (result.affectedRows > 0) {
-       res.status(200).json({ message: 'Password reset successful' });
-     } else {
-       res.status(400).json({ message: 'Failed to reset password' });
-     }
+      if (result.affectedRows > 0) {
+         res.status(200).json({ message: 'Password reset successful' });
+      } else {
+         res.status(400).json({ message: 'Failed to reset password' });
+      }
    } catch (error) {
-     console.error('Error resetting password:', error);
-     res.status(500).json({ message: 'An error occurred, please try again later' });
+      console.error('Error resetting password:', error);
+      res.status(500).json({ message: 'An error occurred, please try again later' });
    }
- });
+});
 
 //Add Department
 router.post('/add-department', async (req, res) => {
