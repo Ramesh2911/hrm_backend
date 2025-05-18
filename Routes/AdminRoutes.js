@@ -1,5 +1,7 @@
 import express from "express";
 import con from "../utils/db.js";
+import cloudinary from "../utils/cloudinary.js";
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import jwt from "jsonwebtoken";
 import bcrypt from 'bcryptjs';
 import multer from "multer";
@@ -19,16 +21,17 @@ if (!fs.existsSync(uploadDir)) {
    fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-const storage = multer.diskStorage({
-   destination: (req, file, cb) => {
-      cb(null, uploadDir);
-   },
-   filename: (req, file, cb) => {
-      cb(null, `${Date.now()}-${file.originalname}`);
+const storage = new CloudinaryStorage({
+   cloudinary: cloudinary,
+   params: {
+      folder: 'uploads', // Optional: folder name in your Cloudinary dashboard
+      allowed_formats: ['jpg', 'jpeg', 'png'],
+      public_id: (req, file) => `${Date.now()}-${file.originalname}`,
    },
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({ storage });
+
 
 const ADMIN_ID = '1';
 
