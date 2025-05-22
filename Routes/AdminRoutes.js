@@ -33,7 +33,6 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage });
 
-
 const ADMIN_ID = '1';
 
 const generateEmpId = async () => {
@@ -1880,7 +1879,8 @@ router.post('/add/pay_slips', upload.single('doc_file'), async (req, res) => {
       const docFile = req.file ? req.file.filename : null;
       const sender = 1;
       const currentDate = new Date().toISOString().split('T')[0];
-
+ const cloudinaryUrl = req.file.path;
+      
       if (!send_to || !docFile) {
          return res.status(400).json({ message: 'Please provide all required fields' });
       }
@@ -1896,7 +1896,7 @@ router.post('/add/pay_slips', upload.single('doc_file'), async (req, res) => {
       return res.status(200).json({
          message: 'Pay-slips uploaded successfully',
          paySlipsId: paySlipResult.insertId,
-         filePath: `http://127.0.0.1:3000/${docFile}`
+         filePath: cloudinaryUrl ,
       });
    } catch (err) {
       console.error('Error inserting document:', err);
