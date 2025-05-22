@@ -22,12 +22,13 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 const storage = new CloudinaryStorage({
-   cloudinary: cloudinary,
-   params: {
-      folder: 'uploads',
-      allowed_formats: ['jpg', 'jpeg', 'png','pdf'],
-      public_id: (req, file) => `${Date.now()}-${file.originalname}`,
-   },
+  cloudinary: cloudinary,
+  params: {
+    folder: 'uploads', 
+    resource_type: 'auto', 
+    allowed_formats: ['jpg', 'jpeg', 'png', 'pdf'], 
+    public_id: (req, file) => `${Date.now()}-${file.originalname}`
+  }
 });
 
 const upload = multer({ storage });
@@ -1895,7 +1896,7 @@ router.post('/add/pay_slips', upload.single('doc_file'), async (req, res) => {
       return res.status(200).json({
          message: 'Pay-slips uploaded successfully',
          paySlipsId: paySlipResult.insertId,
-         filePath: `http://127.0.0.1:3000/uploads/${docFile}`
+         filePath: `http://127.0.0.1:3000/${docFile}`
       });
    } catch (err) {
       console.error('Error inserting document:', err);
