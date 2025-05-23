@@ -1921,7 +1921,7 @@ router.post('/add/pay_slips', upload.single('doc_file'), async (req, res) => {
 
     // Save public_id (filename) to DB
     const paySlipSql = `INSERT INTO pay_slips (sender, receiver, doc_file, date) VALUES (?, ?, ?, ?)`;
-    const [paySlipResult] = await con.query(paySlipSql, [sender, send_to, docFile, currentDate]);
+    const [paySlipResult] = await con.query(paySlipSql, [sender, send_to, cloudinaryUrl, currentDate]);
 
     const message = `Admin sent pay slips to employee ${first_name} ${last_name}`;
 
