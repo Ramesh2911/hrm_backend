@@ -23,11 +23,13 @@ if (!fs.existsSync(uploadDir)) {
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
-  params: {
-    folder: 'uploads', 
-    resource_type: 'auto', 
-    allowed_formats: ['jpg', 'jpeg', 'png', 'pdf'], 
-    public_id: (req, file) => `${Date.now()}-${file.originalname}`
+  params: (req, file) => {
+    const isPdf = file.mimetype === 'application/pdf';
+    return {
+      folder: 'uploads',
+      resource_type: isPdf ? 'raw' : 'image',
+      public_id: `${Date.now()}-${file.originalname}`
+    };
   }
 });
 
