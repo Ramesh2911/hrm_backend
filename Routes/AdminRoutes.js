@@ -1875,35 +1875,68 @@ router.delete('/delete/document/:id', async (req, res) => {
 });
 
 //add paySlips
-router.post('/add/pay_slips', upload.single('doc_file'), async (req, res) => {
-   try {
-      const { send_to, first_name, last_name } = req.body;
-      const docFile = req.file ? req.file.filename : null;
-      const sender = 1;
-      const currentDate = new Date().toISOString().split('T')[0];
- const cloudinaryUrl = req.file.path;
+// router.post('/add/pay_slips', upload.single('doc_file'), async (req, res) => {
+//    try {
+//       const { send_to, first_name, last_name } = req.body;
+//       const docFile = req.file ? req.file.filename : null;
+//       const sender = 1;
+//       const currentDate = new Date().toISOString().split('T')[0];
+//  const cloudinaryUrl = req.file.path;
       
-      if (!send_to || !docFile) {
-         return res.status(400).json({ message: 'Please provide all required fields' });
-      }
+//       if (!send_to || !docFile) {
+//          return res.status(400).json({ message: 'Please provide all required fields' });
+//       }
 
-      const paySlipSql = `INSERT INTO pay_slips (sender, receiver, doc_file, date) VALUES (?, ?, ?, ?)`;
-      const [paySlipResult] = await con.query(paySlipSql, [sender, send_to, docFile, currentDate]);
+//       const paySlipSql = `INSERT INTO pay_slips (sender, receiver, doc_file, date) VALUES (?, ?, ?, ?)`;
+//       const [paySlipResult] = await con.query(paySlipSql, [sender, send_to, docFile, currentDate]);
 
-      const message = `Admin sent pay slips to employee ${first_name} ${last_name}`;
+//       const message = `Admin sent pay slips to employee ${first_name} ${last_name}`;
 
-      const notificationSql = `INSERT INTO notification (sender, receiver, message, date) VALUES (?, ?, ?, ?)`;
-      await con.query(notificationSql, [sender, send_to, message, currentDate]);
+//       const notificationSql = `INSERT INTO notification (sender, receiver, message, date) VALUES (?, ?, ?, ?)`;
+//       await con.query(notificationSql, [sender, send_to, message, currentDate]);
 
-      return res.status(200).json({
-         message: 'Pay-slips uploaded successfully',
-         paySlipsId: paySlipResult.insertId,
-         filePath: cloudinaryUrl ,
-      });
-   } catch (err) {
-      console.error('Error inserting document:', err);
-      return res.status(500).json({ error: 'Error uploading document', details: err.message });
-   }
+//       return res.status(200).json({
+//          message: 'Pay-slips uploaded successfully',
+//          paySlipsId: paySlipResult.insertId,
+//          filePath: cloudinaryUrl ,
+//       });
+//    } catch (err) {
+//       console.error('Error inserting document:', err);
+//       return res.status(500).json({ error: 'Error uploading document', details: err.message });
+//    }
+// });
+
+
+router.post('/add/pay_slips', upload.single('doc_file'), async (req, res) => {
+  try {
+    const { send_to, first_name, last_name } = req.body;
+    const docFile = req.file ? req.file.filename : null;
+    const cloudinaryUrl = req.file ? req.file.path : null;
+    const sender = 1;
+    const currentDate = new Date().toISOString().split('T')[0];
+
+    if (!send_to || !docFile) {
+      return res.status(400).json({ message: 'Please provide all required fields' });
+    }
+
+    // Save public_id (filename) to DB
+    const paySlipSql = `INSERT INTO pay_slips (sender, receiver, doc_file, date) VALUES (?, ?, ?, ?)`;
+    const [paySlipResult] = await con.query(paySlipSql, [sender, send_to, docFile, currentDate]);
+
+    const message = `Admin sent pay slips to employee ${first_name} ${last_name}`;
+
+    const notificationSql = `INSERT INTO notification (sender, receiver, message, date) VALUES (?, ?, ?, ?)`;
+    await con.query(notificationSql, [sender, send_to, message, currentDate]);
+
+    return res.status(200).json({
+      message: 'Pay-slips uploaded successfully',
+      paySlipsId: paySlipResult.insertId,
+      filePath: cloudinaryUrl,  // This URL opens PDF in browser if file is valid
+    });
+  } catch (err) {
+    console.error('Error inserting document:', err);
+    return res.status(500).json({ error: 'Error uploading document', details: err.message });
+  }
 });
 
 //list payslips
