@@ -504,7 +504,7 @@ router.post('/add-employee', upload.fields([
       passport_no: req.body.passport_no,
       passport_issue_date: req.body.passport_issue_date,
       passport_expiry_date: req.body.passport_expiry_date,
-      passport_doc: req.files.passport_doc ? req.files.passport_doc[0].filename : null,
+    passport_doc: req.files.passport_doc ? req.files.passport_doc[0].path : null,
       visa_no: req.body.visa_no,
       visa_issue_date: req.body.visa_issue_date,
       visa_expiry_date: req.body.visa_expiry_date,
@@ -513,10 +513,10 @@ router.post('/add-employee', upload.fields([
       emp_department: req.body.emp_department,
       salary: req.body.salary,
       joining_date: req.body.joining_date,
-      emp_pic: req.files.emp_pic ? req.files.emp_pic[0].filename : null,
-      address_doc: req.files.address_doc ? req.files.address_doc[0].filename : null,
-      p45_doc: req.files.p45_doc ? req.files.p45_doc[0].filename : null,
-      others_doc: req.files.others_doc ? req.files.others_doc[0].filename : null,
+     emp_pic: req.files.emp_pic ? req.files.emp_pic[0].path : null,
+     address_doc: req.files.address_doc ? req.files.address_doc[0].path : null,
+     p45_doc: req.files.p45_doc ? req.files.p45_doc[0].path : null,
+     others_doc: req.files.others_doc ? req.files.others_doc[0].path : null,
       status: req.body.status || "1",
       ni_number: req.body.ni_number,
       contracted_hours: req.body.contracted_hours,
@@ -529,7 +529,7 @@ router.post('/add-employee', upload.fields([
       bank_name: req.body.bank_name,
       sc_number: req.body.sc_number,
       notice_period: req.body.notice_period,
-      work_check: req.files.work_check ? req.files.work_check[0].filename : null
+     work_check: req.files.work_check ? req.files.work_check[0].path : null,
    };
 
    try {
