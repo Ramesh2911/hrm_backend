@@ -1791,7 +1791,8 @@ router.get('/fetch-employee/:emp_id', async (req, res) => {
 router.post('/upload-document', upload.single('doc_file'), async (req, res) => {
    try {
       const { sender, send_to: receiver, emp_id } = req.body;
-      const docFile = req.file ? req.file.filename : req.body.doc_file;
+      const docFile = req.file ? req.file.filename : null;
+    const cloudinaryUrl = req.file ? req.file.path : null;
 
       if (!docFile) {
          return res.status(400).json({ error: 'No file uploaded' });
@@ -1809,12 +1810,12 @@ router.post('/upload-document', upload.single('doc_file'), async (req, res) => {
       }
 
       const query = `INSERT INTO documents (sender, receiver, doc_file, date) VALUES (?, ?, ?, ?)`;
-      const [result] = await con.query(query, [senderId, receiverId, docFile, date]);
+      const [result] = await con.query(query, [senderId, receiverId, cloudinaryUrl, date]);
 
       return res.status(200).json({
          message: 'Document uploaded successfully',
          documentId: result.insertId,
-         filePath: `http://127.0.0.1:3000/uploads/${docFile}`
+         filePath: cloudinaryUrl,
       });
    } catch (err) {
       console.error('Error inserting document:', err);
@@ -2034,6 +2035,7 @@ router.post('/add/p60', upload.single('doc_file'), async (req, res) => {
    try {
       const { send_to } = req.body;
       const docFile = req.file ? req.file.filename : null;
+    const cloudinaryUrl = req.file ? req.file.path : null;
       const sender = 1;
       const currentDate = new Date().toISOString().split('T')[0];
       if (!send_to || !docFile) {
@@ -2041,12 +2043,12 @@ router.post('/add/p60', upload.single('doc_file'), async (req, res) => {
       }
 
       const sql = `INSERT INTO p60 (sender, receiver, doc_file, date) VALUES (?, ?, ?, ?)`;
-      const [result] = await con.query(sql, [sender, send_to, docFile, currentDate]);
+      const [result] = await con.query(sql, [sender, send_to, cloudinaryUrl, currentDate]);
 
       return res.status(200).json({
          message: 'P60 uploaded successfully',
          p60Id: result.insertId,
-         filePath: `http://127.0.0.1:3000/uploads/${docFile}`
+         filePath: cloudinaryUrl,
       });
    } catch (err) {
       console.error('Error inserting document:', err);
