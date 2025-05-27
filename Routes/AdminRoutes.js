@@ -24,19 +24,14 @@ if (!fs.existsSync(uploadDir)) {
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: (req, file) => {
-    const isRawFile =
-      file.mimetype === 'application/pdf' ||
-      file.mimetype === 'application/msword' ||
-      file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; 
-
+    const isPdf = file.mimetype === 'application/pdf';
     return {
       folder: 'uploads',
-      resource_type: isRawFile ? 'raw' : 'image',
-      public_id: `${Date.now()}-${file.originalname}`
+      resource_type: isPdf ? 'raw' : 'image',
+      public_id: ${Date.now()}-${file.originalname}
     };
   }
 });
-
 
 const upload = multer({ storage });
 
@@ -66,8 +61,8 @@ const generateEmpId = async () => {
 const transporter = nodemailer.createTransport({
    service: 'Gmail',
    auth: {
-      user: 'janaramesh15@gmail.com',
-      pass: 'oglwtaangkovbeqg',
+      user: 'radiancelondonltd@gmail.com',
+      pass: 'xzfbzyxouahsvhjy',
    },
    debug: true,
    logger: true
@@ -277,7 +272,7 @@ router.post('/forgot-password', async (req, res) => {
       const resetLink = `http://localhost:3001/reset-password/${token}`;
 
       const mailOptions = {
-         from: 'janaramesh15@gmail.com',
+         from: 'radiancelondonltd@gmail.com',
          to: user[0].username,
          subject: 'Password Reset Request',
          html: `<p>Click the link below to reset your password. The link is valid for 1 hour:</p>
