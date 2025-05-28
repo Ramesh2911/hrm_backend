@@ -269,7 +269,7 @@ router.post('/forgot-password', async (req, res) => {
       }
 
       const token = jwt.sign({ id: user[0].id }, JWT_SECRET_KEY, { expiresIn: '1h' });
-      const resetLink = `http://localhost:3001/reset-password/${token}`;
+      const resetLink = `https://radiancehrm.uk/reset-password/${token}`;
 
       const mailOptions = {
          from: 'radiancelondonltd@gmail.com',
