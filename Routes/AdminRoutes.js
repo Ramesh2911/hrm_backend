@@ -68,70 +68,6 @@ const transporter = nodemailer.createTransport({
    logger: true
 });
 
-//Authenticate
-// router.post('/authenticate', async (req, res) => {
-//    const { user_name, user_password } = req.body;
-
-//    if (!user_name || !user_password) {
-//       return res.status(400).json({ loginStatus: false, Error: "Username and password are required" });
-//    }
-
-//    const sql = 'SELECT * FROM users WHERE username = ?';
-
-//    try {
-//       const [result] = await con.query(sql, [user_name]);
-
-//       if (result.length === 0) {
-//          return res.status(404).json({ loginStatus: false, Error: "User not found" });
-//       }
-
-//       const user = result[0];
-//       const match = await bcrypt.compare(user_password, user.password);
-//       if (!match) {
-//          return res.status(401).json({ loginStatus: false, Error: "Incorrect username or password" });
-//       }
-//       const expiresIn = 1 * 60 * 60;
-//       const token = jwt.sign(
-//          { emp_id: user.emp_id, role: user.role_name },
-//          JWT_SECRET_KEY,
-//          { expiresIn }
-//       );
-//       const token_expired_on = new Date(Date.now() + expiresIn * 1000).toISOString();
-//       const updateTokenSql = 'UPDATE users SET token = ?, updated_at = ? WHERE id = ?';
-//       await con.execute(updateTokenSql, [token, new Date(), user.id]);
-//       const empSql = "SELECT emp_id, first_name, last_name FROM employee_data WHERE email = ?";
-//       const [empResult] = await con.query(empSql, [user.username]);
-
-//       const responseData = {
-//          loginStatus: true,
-//          userData: {
-//             id: user.id,
-//             username: user.username,
-//             role_id: user.role_id,
-//             role_name: user.role_name,
-//             token: token,
-//             token_expired_on: token_expired_on,
-//             is_default_pwd: user.is_default_pwd,
-//             message: `${user.role_name} login successful`
-//          }
-//       };
-
-//       if (empResult.length > 0) {
-//          const employee = empResult[0];
-//          responseData.userData.emp_id = employee.emp_id;
-//          responseData.userData.first_name = employee.first_name;
-//          responseData.userData.last_name = employee.last_name;
-//       } else {
-//          responseData.userData.message += " (No employee data found)";
-//       }
-
-//       return res.json(responseData);
-//    } catch (error) {
-//       console.error("Error during login process:", error);
-//       return res.status(500).json({ loginStatus: false, Error: "Internal server error" });
-//    }
-// });
-
 router.post('/authenticate', async (req, res) => {
    const { user_name, user_password } = req.body;
    if (!user_name || !user_password) {
@@ -717,6 +653,7 @@ router.put('/update-employee/:emp_id', upload.fields([
    { name: 'work_check', maxCount: 1 }
 ]), async (req, res) => {
    const emp_id = req.params.emp_id;
+
    const updatedValues = {
       first_name: req.body.first_name,
       last_name: req.body.last_name,
@@ -733,19 +670,19 @@ router.put('/update-employee/:emp_id', upload.fields([
       passport_no: req.body.passport_no,
       passport_issue_date: req.body.passport_issue_date,
       passport_expiry_date: req.body.passport_expiry_date,
-      passport_doc: req.files.passport_doc ? req.files.passport_doc[0].filename : undefined,
+      passport_doc: req.files.passport_doc ? req.files.passport_doc[0].path : undefined,
       visa_no: req.body.visa_no,
       visa_issue_date: req.body.visa_issue_date,
       visa_expiry_date: req.body.visa_expiry_date,
-      visa_doc: req.files.visa_doc ? req.files.visa_doc[0].filename : undefined,
+      visa_doc: req.files.visa_doc ? req.files.visa_doc[0].path : undefined,
       emp_position: req.body.emp_position,
       emp_department: req.body.emp_department,
       salary: req.body.salary,
       joining_date: req.body.joining_date,
-      emp_pic: req.files.emp_pic ? req.files.emp_pic[0].filename : undefined,
-      address_doc: req.files.address_doc ? req.files.address_doc[0].filename : undefined,
-      p45_doc: req.files.p45_doc ? req.files.p45_doc[0].filename : undefined,
-      others_doc: req.files.others_doc ? req.files.others_doc[0].filename : undefined,
+      emp_pic: req.files.emp_pic ? req.files.emp_pic[0].path : undefined,
+      address_doc: req.files.address_doc ? req.files.address_doc[0].path : undefined,
+      p45_doc: req.files.p45_doc ? req.files.p45_doc[0].path : undefined,
+      others_doc: req.files.others_doc ? req.files.others_doc[0].path : undefined,
       status: req.body.status,
       ni_number: req.body.ni_number,
       contracted_hours: req.body.contracted_hours,
@@ -758,10 +695,11 @@ router.put('/update-employee/:emp_id', upload.fields([
       bank_name: req.body.bank_name,
       sc_number: req.body.sc_number,
       notice_period: req.body.notice_period,
-      work_check: req.files.work_check ? req.files.work_check[0].filename : undefined
+      work_check: req.files.work_check ? req.files.work_check[0].path : undefined
    };
 
    try {
+      // Remove undefined fields (files that were not updated)
       const filteredValues = Object.fromEntries(
          Object.entries(updatedValues).filter(([_, v]) => v !== undefined)
       );
@@ -774,21 +712,19 @@ router.put('/update-employee/:emp_id', upload.fields([
       const updateSql = `UPDATE employee_data SET ${updateFields} WHERE emp_id = ?`;
       await con.execute(updateSql, [...updateValues, emp_id]);
 
+      // Update related user table data if needed
       if (req.body.status || req.body.email) {
-         const selectEmailSql = `SELECT email FROM employee_data WHERE emp_id = ?`;
-         const [rows] = await con.execute(selectEmailSql, [emp_id]);
+         const [rows] = await con.execute(`SELECT email FROM employee_data WHERE emp_id = ?`, [emp_id]);
 
          if (rows.length > 0) {
-            const employeeEmail = rows[0].email;
+            const currentEmail = rows[0].email;
 
             if (req.body.status) {
-               const updateUserStatusSql = `UPDATE users SET status = ? WHERE username = ?`;
-               await con.execute(updateUserStatusSql, [req.body.status, employeeEmail]);
+               await con.execute(`UPDATE users SET status = ? WHERE username = ?`, [req.body.status, currentEmail]);
             }
 
             if (req.body.email) {
-               const updateUserEmailSql = `UPDATE users SET username = ? WHERE username = ?`;
-               await con.execute(updateUserEmailSql, [req.body.email, employeeEmail]);
+               await con.execute(`UPDATE users SET username = ? WHERE username = ?`, [req.body.email, currentEmail]);
             }
          }
       }
