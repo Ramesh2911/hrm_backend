@@ -22,11 +22,11 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
+  cloudinary,
   params: (req, file) => {
     const mimetype = file.mimetype;
+    const isImage = ['image/jpeg', 'image/jpg', 'image/png'].includes(mimetype);
     const isPdf = mimetype === 'application/pdf';
-    const isImage = mimetype === 'image/jpeg' || mimetype === 'image/jpg' || mimetype === 'image/png';
 
     return {
       folder: 'uploads',
