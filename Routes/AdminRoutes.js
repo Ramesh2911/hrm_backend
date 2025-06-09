@@ -24,14 +24,18 @@ if (!fs.existsSync(uploadDir)) {
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: (req, file) => {
-    const isPdf = file.mimetype === 'application/pdf';
+    const mimetype = file.mimetype;
+    const isPdf = mimetype === 'application/pdf';
+    const isImage = mimetype === 'image/jpeg' || mimetype === 'image/jpg' || mimetype === 'image/png';
+
     return {
       folder: 'uploads',
-      resource_type: isPdf ? 'raw' : 'image',
+      resource_type: isPdf ? 'raw' : isImage ? 'image' : 'auto',
       public_id: `${Date.now()}-${file.originalname}`
     };
   }
 });
+
 
 const upload = multer({ storage });
 
