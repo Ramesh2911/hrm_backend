@@ -1972,28 +1972,41 @@ router.delete('/delete/pay_slips/:id', async (req, res) => {
 
 //add p60
 router.post('/add/p60', upload.single('doc_file'), async (req, res) => {
-   try {
-      const { send_to } = req.body;
-      const docFile = req.file ? req.file.filename : null;
+  try {
+    const { send_to, first_name, last_name } = req.body;
+    const docFile = req.file ? req.file.filename : null;
     const cloudinaryUrl = req.file ? req.file.path : null;
-      const sender = 1;
-      const currentDate = new Date().toISOString().split('T')[0];
-      if (!send_to || !docFile) {
-         return res.status(400).json({ message: 'Please provide all required fields' });
-      }
+    const sender = 1; 
+    const currentDate = new Date().toISOString().split('T')[0];
 
-      const sql = `INSERT INTO p60 (sender, receiver, doc_file, date) VALUES (?, ?, ?, ?)`;
-      const [result] = await con.query(sql, [sender, send_to, cloudinaryUrl, currentDate]);
-      return res.status(200).json({
-         message: 'P60 uploaded successfully',
-         p60Id: result.insertId,
-         filePath: cloudinaryUrl,
-      });
-   } catch (err) {
-      console.error('Error inserting document:', err);
-      return res.status(500).json({ error: 'Error uploading document', details: err.message });
-   }
+    if (!send_to || !docFile) {
+      return res.status(400).json({ message: 'Please provide all required fields' });
+    }
+
+    // Insert P60 document into DB
+    const p60Sql = `INSERT INTO p60 (sender, receiver, doc_file, date) VALUES (?, ?, ?, ?)`;
+    const [p60Result] = await con.query(p60Sql, [sender, send_to, cloudinaryUrl, currentDate]);
+
+    // Insert notification
+    const message = `Admin sent P60 document to employee ${first_name} ${last_name}`;
+    const notificationSql = `INSERT INTO notification (sender, receiver, message, date) VALUES (?, ?, ?, ?)`;
+    await con.query(notificationSql, [sender, send_to, message, currentDate]);
+
+    return res.status(200).json({
+      message: 'P60 uploaded successfully',
+      p60Id: p60Result.insertId,
+      filePath: cloudinaryUrl, 
+    });
+
+  } catch (err) {
+    console.error('Error inserting P60 document:', err);
+    return res.status(500).json({
+      error: 'Error uploading P60 document',
+      details: err.message
+    });
+  }
 });
+
 
 //list p60
 router.get('/fetch-p60', async (req, res) => {
