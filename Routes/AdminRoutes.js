@@ -1728,11 +1728,46 @@ router.get('/fetch-employee/:emp_id', async (req, res) => {
 });
 
 //Add Documents
+// router.post('/upload-document', upload.single('doc_file'), async (req, res) => {
+//    try {
+//       const { sender, send_to: receiver, emp_id } = req.body;
+//       const docFile = req.file ? req.file.filename : null;
+//     const cloudinaryUrl = req.file ? req.file.path : null;
+
+//       if (!docFile) {
+//          return res.status(400).json({ error: 'No file uploaded' });
+//       }
+
+//       const date = new Date();
+//       let senderId = sender;
+//       let receiverId = receiver;
+
+//       if (senderId === ADMIN_ID) {
+//          receiverId = receiver;
+//       } else {
+//          senderId = emp_id || sender;
+//          receiverId = ADMIN_ID;
+//       }
+
+//       const query = `INSERT INTO documents (sender, receiver, doc_file, date) VALUES (?, ?, ?, ?)`;
+//       const [result] = await con.query(query, [senderId, receiverId, cloudinaryUrl, date]);
+
+//       return res.status(200).json({
+//          message: 'Document uploaded successfully',
+//          documentId: result.insertId,
+//          filePath: cloudinaryUrl,
+//       });
+//    } catch (err) {
+//       console.error('Error inserting document:', err);
+//       return res.status(500).json({ error: 'Error uploading document', details: err.message });
+//    }
+// });
+
 router.post('/upload-document', upload.single('doc_file'), async (req, res) => {
    try {
-      const { sender, send_to: receiver, emp_id } = req.body;
+      const { sender, send_to: receiver, emp_id, first_name, last_name } = req.body;
       const docFile = req.file ? req.file.filename : null;
-    const cloudinaryUrl = req.file ? req.file.path : null;
+      const cloudinaryUrl = req.file ? req.file.path : null;
 
       if (!docFile) {
          return res.status(400).json({ error: 'No file uploaded' });
@@ -1741,27 +1776,40 @@ router.post('/upload-document', upload.single('doc_file'), async (req, res) => {
       const date = new Date();
       let senderId = sender;
       let receiverId = receiver;
+      let message = '';
 
+      // Determine sender and receiver IDs
       if (senderId === ADMIN_ID) {
+         // Admin is sending document to employee
          receiverId = receiver;
+         message = `Admin sent a document to employee ${first_name} ${last_name}`;
       } else {
+         // Employee is sending document to Admin
          senderId = emp_id || sender;
          receiverId = ADMIN_ID;
+         message = `Employee sent a document to Admin`;
       }
 
+      // Insert into documents table
       const query = `INSERT INTO documents (sender, receiver, doc_file, date) VALUES (?, ?, ?, ?)`;
       const [result] = await con.query(query, [senderId, receiverId, cloudinaryUrl, date]);
+
+      // Insert into notifications table
+      const notificationQuery = `INSERT INTO notification (sender, receiver, message, date) VALUES (?, ?, ?, ?)`;
+      await con.query(notificationQuery, [senderId, receiverId, message, date]);
 
       return res.status(200).json({
          message: 'Document uploaded successfully',
          documentId: result.insertId,
          filePath: cloudinaryUrl,
       });
+
    } catch (err) {
       console.error('Error inserting document:', err);
       return res.status(500).json({ error: 'Error uploading document', details: err.message });
    }
 });
+
 
 //List Documents
 router.get('/fetch-documents', async (req, res) => {
