@@ -1984,6 +1984,10 @@ router.post('/add/p60', upload.single('doc_file'), async (req, res) => {
 
       const sql = `INSERT INTO p60 (sender, receiver, doc_file, date) VALUES (?, ?, ?, ?)`;
       const [result] = await con.query(sql, [sender, send_to, cloudinaryUrl, currentDate]);
+ const message = `Admin sent pay slips to employee ${first_name} ${last_name}`;
+       const notificationSql = `INSERT INTO notification (sender, receiver, message, date) VALUES (?, ?, ?, ?)`;
+    await con.query(notificationSql, [sender, send_to, message, currentDate]);
+
 
       return res.status(200).json({
          message: 'P60 uploaded successfully',
