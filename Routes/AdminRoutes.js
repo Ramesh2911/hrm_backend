@@ -1429,6 +1429,16 @@ router.put('/approve-leave/:id', async (req, res) => {
 
       const updateLeaveQuery = 'UPDATE leaves SET total_leaves = ? WHERE emp_id = ?';
       await con.query(updateLeaveQuery, [updatedTotalLeaves, emp_id]);
+const notificationMessage = 'Your leave request has been approved by the Admin';
+      const date = new Date();
+      const sender = 1; 
+      const receiver = emp_id;
+
+      const notificationQuery = `
+         INSERT INTO notification (sender, receiver, message, date)
+         VALUES (?, ?, ?, ?)
+      `;
+      await con.query(notificationQuery, [sender, receiver, notificationMessage, date]);
 
       res.status(200).json({ message: 'Leave status updated and leaves deducted successfully.' });
 
