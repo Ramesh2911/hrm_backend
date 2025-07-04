@@ -1782,12 +1782,12 @@ router.post('/upload-document', upload.single('doc_file'), async (req, res) => {
       if (senderId === ADMIN_ID) {
          // Admin is sending document to employee
          receiverId = receiver;
-         message = `Admin sent a document to employee ${first_name} ${last_name}`;
+         message = `Admin sent a document to you`;
       } else {
          // Employee is sending document to Admin
          senderId = emp_id || sender;
          receiverId = ADMIN_ID;
-         message = `Employee sent a document to Admin`;
+        message = `${first_name} ${last_name} sent a document`;
       }
 
       // Insert into documents table
