@@ -72,6 +72,22 @@ const transporter = nodemailer.createTransport({
    logger: true
 });
 
+const countWeekdays(startDate, endDate) {
+   let current = moment(startDate);
+   const end = moment(endDate);
+   let count = 0;
+
+   while (current <= end) {
+      const day = current.day(); // 0: Sunday, 6: Saturday
+      if (day !== 0 && day !== 6) {
+         count++;
+      }
+      current.add(1, 'days');
+   }
+
+   return count;
+}
+
 router.post('/authenticate', async (req, res) => {
    const { user_name, user_password } = req.body;
    if (!user_name || !user_password) {
@@ -1189,8 +1205,60 @@ router.post('/fetch-attendance', async (req, res) => {
 //    }
 // });
 
+// router.post('/add-leaves', async (req, res) => {
+//    const { emp_id, from_date, to_date, duration, description, first_name, last_name } = req.body;
+
+//    const todayDate = new Date().toISOString().slice(0, 10);
+
+//    try {
+//       const leaveQuery = 'SELECT total_leaves FROM leaves WHERE emp_id = ?';
+//       const [leaveResult] = await con.query(leaveQuery, [emp_id]);
+
+//       if (leaveResult.length > 0) {
+//          let total_leaves = leaveResult[0].total_leaves;
+
+//          // No deduction or addition of leaves taken
+//          const leaveApplicationQuery = `
+//                INSERT INTO leaves_application
+//                (emp_id, from_date, to_date, holiday_taken, holiday_remaining, duration, description, status)
+//                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+
+//          await con.query(leaveApplicationQuery, [
+//             emp_id,
+//             from_date,
+//             to_date,
+//             0,  // "holiday_taken" is set to 0 since no leave is deducted at this point
+//             total_leaves,  // "holiday_remaining" remains as it was
+//             duration,  // "duration" remains the same
+//             description,
+//             1  // status set as "requested" or "pending"
+//          ]);
+
+//          const notificationMessage = `${first_name} ${last_name} has requested leave.`;
+//          const notificationQuery = `
+//                INSERT INTO notification
+//                (sender, receiver, message, date)
+//                VALUES (?, ?, ?, ?)`;
+
+//          await con.query(notificationQuery, [
+//             emp_id,
+//             1,  // Assuming the receiver is admin (emp_id = 1)
+//             notificationMessage,
+//             todayDate
+//          ]);
+
+//          res.status(200).json({ message: 'Leave request successfully submitted.' });
+//       } else {
+//          res.status(404).json({ message: 'Employee not found.' });
+//       }
+//    } catch (error) {
+//       console.error('Error occurred while processing the leave request:', error);
+//       res.status(500).json({ error: 'An error occurred while processing the leave request.' });
+//    }
+// });
+
 router.post('/add-leaves', async (req, res) => {
-   const { emp_id, from_date, to_date, duration, description, first_name, last_name } = req.body;
+   const { emp_id, from_date, to_date, description, first_name, last_name } = req.body;
 
    const todayDate = new Date().toISOString().slice(0, 10);
 
@@ -1201,37 +1269,39 @@ router.post('/add-leaves', async (req, res) => {
       if (leaveResult.length > 0) {
          let total_leaves = leaveResult[0].total_leaves;
 
-         // No deduction or addition of leaves taken
+         // ✅ Count only weekdays (Mon–Fri)
+         const duration = countWeekdays(from_date, to_date);
+
          const leaveApplicationQuery = `
-               INSERT INTO leaves_application
-               (emp_id, from_date, to_date, holiday_taken, holiday_remaining, duration, description, status)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+            INSERT INTO leaves_application
+            (emp_id, from_date, to_date, holiday_taken, holiday_remaining, duration, description, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
          await con.query(leaveApplicationQuery, [
             emp_id,
             from_date,
             to_date,
-            0,  // "holiday_taken" is set to 0 since no leave is deducted at this point
-            total_leaves,  // "holiday_remaining" remains as it was
-            duration,  // "duration" remains the same
+            0,  // No leave deducted at this stage
+            total_leaves,
+            duration,
             description,
-            1  // status set as "requested" or "pending"
+            1  // Pending/requested
          ]);
 
          const notificationMessage = `${first_name} ${last_name} has requested leave.`;
          const notificationQuery = `
-               INSERT INTO notification
-               (sender, receiver, message, date)
-               VALUES (?, ?, ?, ?)`;
+            INSERT INTO notification
+            (sender, receiver, message, date)
+            VALUES (?, ?, ?, ?)`;
 
          await con.query(notificationQuery, [
             emp_id,
-            1,  // Assuming the receiver is admin (emp_id = 1)
+            1,  // Assuming admin has emp_id = 1
             notificationMessage,
             todayDate
          ]);
 
-         res.status(200).json({ message: 'Leave request successfully submitted.' });
+         res.status(200).json({ message: 'Leave request successfully submitted.', calculated_days: duration });
       } else {
          res.status(404).json({ message: 'Employee not found.' });
       }
@@ -1240,6 +1310,7 @@ router.post('/add-leaves', async (req, res) => {
       res.status(500).json({ error: 'An error occurred while processing the leave request.' });
    }
 });
+
 
 //Taken leaves count
 router.get('/taken-leaves-count/:emp_id', async (req, res) => {
