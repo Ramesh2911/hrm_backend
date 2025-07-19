@@ -73,22 +73,6 @@ const transporter = nodemailer.createTransport({
    logger: true
 });
 
-const countWeekdays(startDate, endDate) {
-   let current = moment(startDate);
-   const end = moment(endDate);
-   let count = 0;
-
-   while (current <= end) {
-      const day = current.day(); // 0: Sunday, 6: Saturday
-      if (day !== 0 && day !== 6) {
-         count++;
-      }
-      current.add(1, 'days');
-   }
-
-   return count;
-}
-
 router.post('/authenticate', async (req, res) => {
    const { user_name, user_password } = req.body;
    if (!user_name || !user_password) {
@@ -1260,8 +1244,24 @@ router.post('/fetch-attendance', async (req, res) => {
 
 router.post('/add-leaves', async (req, res) => {
    const { emp_id, from_date, to_date, description, first_name, last_name } = req.body;
-
    const todayDate = new Date().toISOString().slice(0, 10);
+
+   // ⬇️ Count weekdays (Mon–Fri) excluding Sat & Sun
+   function countWeekdays(startDate, endDate) {
+      let current = moment(startDate);
+      let end = moment(endDate);
+      let count = 0;
+
+      while (current <= end) {
+         let day = current.day(); // 0 = Sunday, 6 = Saturday
+         if (day !== 0 && day !== 6) {
+            count++;
+         }
+         current.add(1, 'days');
+      }
+
+      return count;
+   }
 
    try {
       const leaveQuery = 'SELECT total_leaves FROM leaves WHERE emp_id = ?';
@@ -1270,7 +1270,7 @@ router.post('/add-leaves', async (req, res) => {
       if (leaveResult.length > 0) {
          let total_leaves = leaveResult[0].total_leaves;
 
-         // ✅ Count only weekdays (Mon–Fri)
+         // ✅ Use countWeekdays to calculate actual leave days
          const duration = countWeekdays(from_date, to_date);
 
          const leaveApplicationQuery = `
