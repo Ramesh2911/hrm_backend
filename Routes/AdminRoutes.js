@@ -1099,20 +1099,23 @@ router.get('/filter-attendance', (req, res) => {
 //Admin Other
 router.post('/fetch-attendance', async (req, res) => {
    const { emp_id, year, month } = req.body;
+
    if (!emp_id || !year || !month) {
       return res.status(400).json({ error: 'All fields are required' });
    }
 
    try {
       const query = `
-           SELECT id, emp_id, first_name, last_name, attendance_date, attendance_login_time, attendance_logout_time
-           FROM attendance
-           WHERE emp_id = ?
-           AND YEAR(attendance_date) = ?
-           AND MONTH(attendance_date) = ?
-       `;
+         SELECT id, emp_id, first_name, last_name, attendance_date, attendance_login_time, attendance_logout_time
+         FROM attendance
+         WHERE emp_id = ?
+         AND YEAR(attendance_date) = ?
+         AND MONTH(attendance_date) = ?
+         ORDER BY attendance_date ASC
+      `;
 
       const [results] = await con.query(query, [emp_id, year, month]);
+
       if (results.length > 0) {
          res.json({
             message: 'Attendance data found',
@@ -1129,6 +1132,7 @@ router.post('/fetch-attendance', async (req, res) => {
       res.status(500).json({ error: 'Database query failed' });
    }
 });
+
 
 //Leaves
 // router.post('/add-leaves', async (req, res) => {
