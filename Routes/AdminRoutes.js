@@ -64,10 +64,10 @@ const generateEmpId = async () => {
 
 const transporter = nodemailer.createTransport({
    service: 'Gmail',
-   auth: {
-      user: 'radiancelondonltd@gmail.com',
-      pass: 'xzfbzyxouahsvhjy',
-   },
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
    debug: true,
    logger: true
 });
