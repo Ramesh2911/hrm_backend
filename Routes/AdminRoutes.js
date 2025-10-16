@@ -65,8 +65,8 @@ const generateEmpId = async () => {
 const transporter = nodemailer.createTransport({
    service: 'Gmail',
   auth: {
-    user: radiancelondonltd@gmail.com,
-    pass: xzfbzyxouahsvhjy,
+    user: "radiancelondonltd@gmail.com",
+    pass: "xzfbzyxouahsvhjy",
   },
    debug: true,
    logger: true
