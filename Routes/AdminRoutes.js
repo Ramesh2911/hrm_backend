@@ -444,7 +444,7 @@ router.post('/add-employee', upload.fields([
       passport_no: req.body.passport_no,
       passport_issue_date: req.body.passport_issue_date,
       passport_expiry_date: req.body.passport_expiry_date,
-    passport_doc: req.files.passport_doc ? req.files.passport_doc[0].path : null,
+      passport_doc: req.files.passport_doc ? req.files.passport_doc[0].path : null,
       visa_no: req.body.visa_no,
       visa_issue_date: req.body.visa_issue_date,
       visa_expiry_date: req.body.visa_expiry_date,
@@ -453,10 +453,10 @@ router.post('/add-employee', upload.fields([
       emp_department: req.body.emp_department,
       salary: req.body.salary,
       joining_date: req.body.joining_date,
-     emp_pic: req.files.emp_pic ? req.files.emp_pic[0].path : null,
-     address_doc: req.files.address_doc ? req.files.address_doc[0].path : null,
-     p45_doc: req.files.p45_doc ? req.files.p45_doc[0].path : null,
-     others_doc: req.files.others_doc ? req.files.others_doc[0].path : null,
+      emp_pic: req.files.emp_pic ? req.files.emp_pic[0].path : null,
+      address_doc: req.files.address_doc ? req.files.address_doc[0].path : null,
+      p45_doc: req.files.p45_doc ? req.files.p45_doc[0].path : null,
+      others_doc: req.files.others_doc ? req.files.others_doc[0].path : null,
       status: req.body.status || "1",
       ni_number: req.body.ni_number,
       contracted_hours: req.body.contracted_hours,
@@ -469,7 +469,7 @@ router.post('/add-employee', upload.fields([
       bank_name: req.body.bank_name,
       sc_number: req.body.sc_number,
       notice_period: req.body.notice_period,
-     work_check: req.files.work_check ? req.files.work_check[0].path : null,
+      work_check: req.files.work_check ? req.files.work_check[0].path : null,
    };
 
    try {
@@ -524,25 +524,11 @@ router.post('/add-employee', upload.fields([
       const leaveSql = `INSERT INTO leaves (${leaveInsertFields}) VALUES (${leavePlaceholders})`;
       await con.execute(leaveSql, leaveValues);
 
-      const mailOptions = {
-         from: 'radiancelondonltd@gmail.com',
-         to: initialValues.email,
-         subject: 'Welcome to Radiance IT',
-         text: `Dear ${initialValues.first_name},\n\nWe are pleased to inform you that your employee account with Radiance IT has been successfully created.\n\nLogin URL:https://radiancehrm.uk/\nUsername: ${initialValues.email}\nPassword: ${defaultPassword}\n\nFor security reasons, please change your password immediately after logging in.\n\nIf you have any questions or need assistance, feel free to reach out to our support team.\n\nBest regards,\nRadiance IT Team`
-      };
-
-      transporter.sendMail(mailOptions, (mailErr) => {
-         if (mailErr) {
-            console.error('Error sending email:', mailErr);
-            return res.status(500).json({ error: 'Error sending email' });
-         }
-
-         res.status(200).json({
-            emp_id,
-            id: result.insertId,
-            user_id: userResult.insertId,
-            message: 'Employee added successfully, credentials sent via email'
-         });
+      res.status(200).json({
+         emp_id,
+         id: result.insertId,
+         user_id: userResult.insertId,
+         message: 'Employee added successfully.'
       });
 
    } catch (error) {
@@ -550,6 +536,7 @@ router.post('/add-employee', upload.fields([
       res.status(500).json({ error: 'Error generating employee ID or hashing password' });
    }
 });
+
 
 //List Emp
 router.get('/employees', async (req, res) => {
