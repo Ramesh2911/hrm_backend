@@ -1460,45 +1460,48 @@ router.get('/remaining-leaves-count/:emp_id', async (req, res) => {
    const currentYear = new Date().getFullYear();
 
    try {
-      // 1️⃣ Get employee holiday & joining date
-      const [empResult] = await con.execute(
+      // 1️⃣ Get joining year & holiday
+      const [emp] = await con.execute(
          `SELECT holiday, joining_date FROM employee_data WHERE emp_id = ?`,
          [emp_id]
       );
 
-      if (empResult.length === 0) {
-         return res.status(200).json({
-            success: true,
-            message: 'No leaves data found for this employee.',
-            data: []
-         });
+      if (emp.length === 0) {
+         return res.status(404).json({ message: 'Employee not found' });
       }
 
-      const joiningYear = new Date(empResult[0].joining_date).getFullYear();
+      const joiningYear = new Date(emp[0].joining_date).getFullYear();
 
-      // 2️⃣ Decide total leaves (NO DB UPDATE)
       const totalLeaves =
-         joiningYear === currentYear
-            ? Number(empResult[0].holiday)
-            : 28;
+         joiningYear === currentYear ? Number(emp[0].holiday) : 28;
+
+      // 2️⃣ Get approved leaves of current year
+      const [taken] = await con.execute(
+         `
+         SELECT COALESCE(SUM(CAST(holiday_taken AS DECIMAL(10,2))), 0) AS taken
+         FROM leaves_application
+         WHERE emp_id = ?
+           AND status = 2
+           AND YEAR(from_date) = ?
+         `,
+         [emp_id, currentYear]
+      );
+
+      const remaining = totalLeaves - Number(taken[0].taken);
 
       res.status(200).json({
          success: true,
-         message: 'Leaves data retrieved successfully.',
-         data: {
-            total_leaves: totalLeaves.toFixed(2)
-         }
+         total_leaves: totalLeaves.toFixed(2),
+         taken_leaves: Number(taken[0].taken).toFixed(2),
+         remaining_leaves: remaining.toFixed(2)
       });
 
    } catch (err) {
       console.error('Database query error:', err);
-      res.status(500).json({
-         success: false,
-         message: 'Database error',
-         error: err.message
-      });
+      res.status(500).json({ error: 'Database error' });
    }
 });
+
 
 
 
