@@ -448,7 +448,7 @@ router.post('/add-employee', upload.fields([
       visa_no: req.body.visa_no,
       visa_issue_date: req.body.visa_issue_date,
       visa_expiry_date: req.body.visa_expiry_date,
-      visa_doc: req.files.visa_doc ? req.files.visa_doc[0].filename : null,
+      visa_doc: req.files.visa_doc ? req.files.visa_doc[0].path : null,
       emp_position: req.body.emp_position,
       emp_department: req.body.emp_department,
       salary: req.body.salary,
