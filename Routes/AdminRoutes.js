@@ -606,7 +606,7 @@ router.get('/employee/view/:emp_id', async (req, res) => {
                 address1, address2, city, post_code, gender, nationality, passport_no,
                 passport_issue_date, passport_expiry_date, visa_no, visa_issue_date,
                 visa_expiry_date, emp_position, emp_department, salary, joining_date,
-                emp_pic, address_doc, p45_doc, others_doc, status, ni_number,
+                emp_pic, address_doc, p45_doc, others_doc, status, ni_number, assigned_project,
                 contracted_hours, fulltime_hours, holiday, salary_option,
                 probation_period, account_name, account_number, bank_name,
                 sc_number, notice_period, work_check,passport_doc,visa_doc
