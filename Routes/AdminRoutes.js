@@ -858,38 +858,6 @@ router.delete('/delete/employee/:email', async (req, res) => {
 });
 
 //Add Project
-// router.post('/add-project', async (req, res) => {
-//    const { project_title, project_description, project_start_date, project_end_date, project_assign_to } = req.body;
-
-//    if (!project_title || !project_description || !project_start_date || !project_assign_to) {
-//       return res.status(400).json({ error: 'All fields are required' });
-//    }
-
-//    try {
-//       const sqlInsertProject = `
-//            INSERT INTO projects
-//            (project_title, project_description, project_start_date, project_end_date, project_assign_to)
-//            VALUES (?, ?, ?, ?, ?)`;
-//       const projectValues = [project_title, project_description, project_start_date, project_end_date, project_assign_to];
-//       const [projectResults] = await con.query(sqlInsertProject, projectValues);
-
-//       const projectId = projectResults.insertId;
-//       const sqlUpdateEmployee = 'UPDATE employee_data SET assigned_project = ? WHERE emp_id = ?';
-//       const [updateResults] = await con.query(sqlUpdateEmployee, [projectId, project_assign_to]);
-
-//       if (updateResults.affectedRows === 0) {
-//          return res.status(404).json({ error: 'Employee not found' });
-//       }
-//       res.status(200).json({
-//          message: 'Project created successfully',
-//          projectId: projectId
-//       });
-//    } catch (error) {
-//       console.error('Error adding project:', error);
-//       res.status(500).json({ error: 'Database operation failed' });
-//    }
-// });
-
 router.post('/add-project', async (req, res) => {
   const {
     project_title,
@@ -970,39 +938,6 @@ router.get('/projects', async (req, res) => {
 });
 
 //Update Project
-// router.put('/update-project', async (req, res) => {
-//    const { id, project_title, project_description, project_start_date, project_end_date, project_assign_to } = req.body;
-//    if (!id || !project_title || !project_description || !project_start_date || !project_end_date || !project_assign_to) {
-//       return res.status(400).json({ error: 'All fields are required' });
-//    }
-
-//    try {
-//       const sqlProject = `
-//            UPDATE projects
-//            SET project_title = ?, project_description = ?, project_start_date = ?,
-//                project_end_date = ?, project_assign_to = ?, updated_at = NOW()
-//            WHERE id = ?`;
-//       const projectValues = [project_title, project_description, project_start_date, project_end_date, project_assign_to, id];
-//       const [projectResult] = await con.query(sqlProject, projectValues);
-
-//       if (projectResult.affectedRows === 0) {
-//          return res.status(404).json({ error: 'Project not found' });
-//       }
-//       const sqlEmployee = 'UPDATE employee_data SET assigned_project = ? WHERE emp_id = ?';
-//       const employeeValues = [id, project_assign_to];
-//       const [employeeResult] = await con.query(sqlEmployee, employeeValues);
-
-//       if (employeeResult.affectedRows === 0) {
-//          return res.status(404).json({ error: 'Employee not found' });
-//       }
-
-//       res.status(200).json({ message: 'Project updated successfully' });
-//    } catch (error) {
-//       console.error('Error updating project:', error);
-//       res.status(500).json({ error: 'Database update failed' });
-//    }
-// });
-
 router.put('/update-project', async (req, res) => {
   const {
     id,
