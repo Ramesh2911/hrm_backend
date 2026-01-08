@@ -1455,67 +1455,67 @@ router.get('/taken-leaves-count/:emp_id', async (req, res) => {
 //    }
 // });
 
-router.get('/remaining-leaves-count/:emp_id', async (req, res) => {
-   const emp_id = req.params.emp_id;
-   const currentYear = new Date().getFullYear();
+// router.get('/remaining-leaves-count/:emp_id', async (req, res) => {
+//    const emp_id = req.params.emp_id;
+//    const currentYear = new Date().getFullYear();
 
-   try {
-      // 1️⃣ Get employee holiday & joining date
-      const [empResult] = await con.execute(
-         `SELECT holiday, joining_date FROM employee_data WHERE emp_id = ?`,
-         [emp_id]
-      );
+//    try {
+//       // 1️⃣ Get employee holiday & joining date
+//       const [empResult] = await con.execute(
+//          `SELECT holiday, joining_date FROM employee_data WHERE emp_id = ?`,
+//          [emp_id]
+//       );
 
-      if (empResult.length === 0) {
-         return res.status(200).json({
-            success: true,
-            message: 'No leaves data found for this employee.',
-            data: []
-         });
-      }
+//       if (empResult.length === 0) {
+//          return res.status(200).json({
+//             success: true,
+//             message: 'No leaves data found for this employee.',
+//             data: []
+//          });
+//       }
 
-      const joiningYear = new Date(empResult[0].joining_date).getFullYear();
+//       const joiningYear = new Date(empResult[0].joining_date).getFullYear();
 
-      // 2️⃣ Decide yearly total leaves
-      const yearlyTotalLeaves =
-         joiningYear === currentYear
-            ? Number(empResult[0].holiday)
-            : 28;
+//       // 2️⃣ Decide yearly total leaves
+//       const yearlyTotalLeaves =
+//          joiningYear === currentYear
+//             ? Number(empResult[0].holiday)
+//             : 28;
 
-      // 3️⃣ Get approved taken leaves for current year
-      const [takenResult] = await con.execute(
-         `
-         SELECT COALESCE(SUM(CAST(holiday_taken AS DECIMAL(10,2))), 0) AS taken
-         FROM leaves_application
-         WHERE emp_id = ?
-           AND status = 2
-           AND YEAR(from_date) = ?
-         `,
-         [emp_id, currentYear]
-      );
+//       // 3️⃣ Get approved taken leaves for current year
+//       const [takenResult] = await con.execute(
+//          `
+//          SELECT COALESCE(SUM(CAST(holiday_taken AS DECIMAL(10,2))), 0) AS taken
+//          FROM leaves_application
+//          WHERE emp_id = ?
+//            AND status = 2
+//            AND YEAR(from_date) = ?
+//          `,
+//          [emp_id, currentYear]
+//       );
 
-      const takenLeaves = Number(takenResult[0].taken);
+//       const takenLeaves = Number(takenResult[0].taken);
 
-      // 4️⃣ Remaining leaves (THIS IS WHAT YOU WANTED)
-      const remainingLeaves = yearlyTotalLeaves - takenLeaves;
+//       // 4️⃣ Remaining leaves (THIS IS WHAT YOU WANTED)
+//       const remainingLeaves = yearlyTotalLeaves - takenLeaves;
 
-      res.status(200).json({
-         success: true,
-         message: 'Leaves data retrieved successfully.',
-         data: {
-            total_leaves: remainingLeaves.toFixed(2)
-         }
-      });
+//       res.status(200).json({
+//          success: true,
+//          message: 'Leaves data retrieved successfully.',
+//          data: {
+//             total_leaves: remainingLeaves.toFixed(2)
+//          }
+//       });
 
-   } catch (err) {
-      console.error('Database query error:', err);
-      res.status(500).json({
-         success: false,
-         message: 'Database error',
-         error: err.message
-      });
-   }
-});
+//    } catch (err) {
+//       console.error('Database query error:', err);
+//       res.status(500).json({
+//          success: false,
+//          message: 'Database error',
+//          error: err.message
+//       });
+//    }
+// });
 
 
 
